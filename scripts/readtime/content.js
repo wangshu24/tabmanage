@@ -1,7 +1,7 @@
 function renderReadingTime(article) {
   // If we weren't provided an article, we don't need to render anything.
   if (!article) {
-    console.log("no article to be read")
+    console.log("no article to be read");
     return;
   }
 
@@ -30,7 +30,7 @@ const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
     // If a new article was added.
     for (const node of mutation.addedNodes) {
-      if (node instanceof Element && node.tagName === 'ARTICLE') {
+      if (node instanceof Element && node.tagName === "ARTICLE") {
         // Render the reading time for this particular article.
         renderReadingTime(node);
       }
@@ -42,6 +42,6 @@ const observer = new MutationObserver((mutations) => {
 // update the address bar and render new content without reloading. Our content
 // script won't be reinjected when this happens, so we need to watch for
 // changes to the content.
-observer.observe(document.querySelector('devsite-content'), {
-  childList: true
+observer.observe(document.querySelector("devsite-content"), {
+  childList: true,
 });
