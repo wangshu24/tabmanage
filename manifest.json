@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Reading time",
+  "name": "Bye Tab",
   "version": "1.0",
   "description": "Add the reading time to Chrome Extension documentation articles",
 
@@ -30,7 +30,7 @@
   "background": {
     "service_worker": "scripts/focusmode/background.js"
   },
-  "permissions": ["tabs", "activeTab", "scripting"],
+  "permissions": ["alarms", "tabs", "activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
   "commands": {
     "_execute_action": {

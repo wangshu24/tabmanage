@@ -1,17 +1,27 @@
+// Initial install con
 chrome.runtime.onInstalled.addListener(() => {
   chrome.action.setBadgeText({
     text: "Inactive",
   });
-  chrome.tabs.query({}, (tabs) => {
-    // console.log(tabs);
-    console.log(tabs[0]);
+  chrome.alarms.create("periodicCheck", {
+    delayInMinutes: 1, //first run after 1min
+    periodInMinutes: 1, //periodic check every 1min
   });
 });
+
+function displayTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach((tab) => {
+      console.log(tab);
+    });
+  });
+}
 
 const extensions = "https://developer.chrome.com/docs/extensions";
 const webstore = "https://developer.chrome.com/docs/webstore";
 
 chrome.action.onClicked.addListener(async (tab) => {
+  displayTabs();
   if (tab.url.startsWith(extensions) || tab.url.startsWith(webstore)) {
     const prevState = await chrome.action.getBadgeText({ tabId: tab.id });
     const nextState = prevState === "ON" ? "OFF" : "ON";
@@ -32,5 +42,11 @@ chrome.action.onClicked.addListener(async (tab) => {
         target: { tabId: tab.id },
       });
     }
+  }
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "periodicCheck") {
+    console.log("performing periodic check");
   }
 });
