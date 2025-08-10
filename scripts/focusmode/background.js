@@ -9,26 +9,55 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Execution on startup
+// Can be configured as user setting
+// For now, defaulted to discaring all none active tabs
+// Can be extended to only keeping prioritized
+chrome.runtime.onStartup.addListener(async () => {
+  const tabs = await chrome.tabs.query({});
+  for (const tab of tabs) {
+    // Keep only active tab in each window loaded
+    if (!tab.active && !tab.discarded) {
+      try {
+        await chrome.tabs.discard(tab.id);
+      } catch (err) {
+        console.warn(`Could not discard tab ${tab.id}:`, err);
+      }
+    }
+  }
+});
+
 function displayTabs() {
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach((tab) => {
-      console.log(tab);
-    });
-  });
+  chrome.tabs.query(
+    { active: false, audible: false, discarded: false, pinned: false },
+    (tabs) => {
+      tabs.forEach((tab) => {
+        console.log(tab);
+      });
+    }
+  );
 }
 
 async function cleanTabs() {
   try {
-    const tabs = await chrome.tabs.query({});
-    tabs.forEach(async (tab) => {
-      if (!tab.active && !tab.pinned && !tab.discarded && !tab.audible) {
-        try {
-          await chrome.tabs.discard(tab.id);
-        } catch (err) {
-          console.log("error discaring tabs: ", err);
-        }
-      }
+    const tabs = await chrome.tabs.query({
+      active: false,
+      audible: false,
+      discarded: false,
+      pinned: false,
     });
+    for (tab of tabs) {
+      try {
+        await chrome.tabs.discard(tab.id);
+      } catch (err) {
+        console.log("error discaring tabs: ", err);
+      }
+    }
+    // tabs.forEach(async (tab) => {
+    //   if (!tab.active && !tab.pinned && !tab.discarded && !tab.audible) {
+
+    //   }
+    // });
   } catch (err) {
     console.log("error from cleanTabs operation: ", err);
   }
