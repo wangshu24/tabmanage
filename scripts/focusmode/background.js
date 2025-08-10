@@ -17,27 +17,44 @@ function displayTabs() {
   });
 }
 
+async function cleanTabs() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    tabs.forEach(async (tab) => {
+      if (!tab.active && !tab.pinned && !tab.discarded && !tab.audible) {
+        try {
+          await chrome.tabs.discard(tab.id);
+        } catch (err) {
+          console.log("error discaring tabs: ", err);
+        }
+      }
+    });
+  } catch (err) {
+    console.log("error from cleanTabs operation: ", err);
+  }
+}
+
 const extensions = "https://developer.chrome.com/docs/extensions";
 const webstore = "https://developer.chrome.com/docs/webstore";
 
-chrome.action.onClicked.addListener(async (tab) => {
+chrome.action.onClicked.addListener((tab) => {
   displayTabs();
   if (tab.url.startsWith(extensions) || tab.url.startsWith(webstore)) {
-    const prevState = await chrome.action.getBadgeText({ tabId: tab.id });
+    const prevState = chrome.action.getBadgeText({ tabId: tab.id });
     const nextState = prevState === "ON" ? "OFF" : "ON";
 
-    await chrome.action.setBadgeText({
+    chrome.action.setBadgeText({
       tabId: tab.id,
       text: nextState,
     });
 
     if (nextState === "ON") {
-      await chrome.scripting.insertCSS({
+      chrome.scripting.insertCSS({
         files: ["focus-mode.css"],
         target: { tabId: tab.id },
       });
     } else if (nextState === "OFF") {
-      await chrome.scripting.removeCSS({
+      chrome.scripting.removeCSS({
         files: ["focus-mode.css"],
         target: { tabId: tab.id },
       });
@@ -48,5 +65,6 @@ chrome.action.onClicked.addListener(async (tab) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "periodicCheck") {
     console.log("performing periodic check");
+    cleanTabs();
   }
 });
