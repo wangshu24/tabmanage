@@ -30,7 +30,7 @@
   "background": {
     "service_worker": "scripts/focusmode/background.js"
   },
-  "permissions": ["alarms", "tabs", "activeTab", "scripting"],
+  "permissions": ["alarms", "tabs", "activeTab", "scripting", "storage"],
   "host_permissions": ["<all_urls>"],
   "commands": {
     "_execute_action": {

@@ -7,6 +7,8 @@ chrome.runtime.onInstalled.addListener(() => {
     delayInMinutes: 1, //first run after 1min
     periodInMinutes: 1, //periodic check every 1min
   });
+
+  chrome.storage.local.set({ pinnedTabs: [] });
 });
 
 // Execution on startup
@@ -38,6 +40,11 @@ function displayTabs() {
   );
 }
 
+async function displayLocalStorage() {
+  tabs = await chrome.storage.local.get("pinnedTabs");
+  console.log(tabs);
+}
+
 async function cleanTabs() {
   try {
     const tabs = await chrome.tabs.query({
@@ -53,11 +60,6 @@ async function cleanTabs() {
         console.log("error discaring tabs: ", err);
       }
     }
-    // tabs.forEach(async (tab) => {
-    //   if (!tab.active && !tab.pinned && !tab.discarded && !tab.audible) {
-
-    //   }
-    // });
   } catch (err) {
     console.log("error from cleanTabs operation: ", err);
   }
@@ -68,6 +70,7 @@ const webstore = "https://developer.chrome.com/docs/webstore";
 
 chrome.action.onClicked.addListener((tab) => {
   displayTabs();
+  displayLocalStorage();
   if (tab.url.startsWith(extensions) || tab.url.startsWith(webstore)) {
     const prevState = chrome.action.getBadgeText({ tabId: tab.id });
     const nextState = prevState === "ON" ? "OFF" : "ON";
