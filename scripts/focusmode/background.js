@@ -4,8 +4,8 @@ chrome.runtime.onInstalled.addListener(() => {
     text: "Inactive",
   });
   chrome.alarms.create("periodicCheck", {
-    delayInMinutes: 1, //first run after 1min
-    periodInMinutes: 1, //periodic check every 1min
+    delayInMinutes: 10, //first run after 10min
+    periodInMinutes: 8, //periodic check every 8min
   });
 
   chrome.storage.local.set({ pinnedTabs: [] });
@@ -29,20 +29,38 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-function displayTabs() {
+async function displayTabs() {
+  tabs = await chrome.tabs.query({});
+  console.log("all tabs: ", tabs);
+}
+
+function displayInactiveTabs() {
   chrome.tabs.query(
     { active: false, audible: false, discarded: false, pinned: false },
     (tabs) => {
+      console.log("displayInactiveTabs: ", tabs);
       tabs.forEach((tab) => {
-        console.log(tab);
+        if (patternMatch(tab.url)) {
+          console.log("found match : ", tab.id, " ", tab.url);
+        }
       });
     }
   );
 }
 
+const excludedURL = [
+  "developer.chrome.com/docs/extensions/reference",
+  "chatgpt.com/c/",
+];
+
 async function displayLocalStorage() {
   tabs = await chrome.storage.local.get("pinnedTabs");
   console.log(tabs);
+}
+
+function patternMatch(url) {
+  console.log("inspecting: ", url);
+  return excludedURL.some((exurl) => url.includes(exurl));
 }
 
 async function cleanTabs() {
@@ -54,10 +72,14 @@ async function cleanTabs() {
       pinned: false,
     });
     for (tab of tabs) {
-      try {
-        await chrome.tabs.discard(tab.id);
-      } catch (err) {
-        console.log("error discaring tabs: ", err);
+      if (patternMatch(tab.url)) {
+        try {
+          await chrome.tabs.discard(tab.id);
+        } catch (err) {
+          console.log("error discaring tabs: ", err);
+        }
+      } else {
+        continue;
       }
     }
   } catch (err) {
@@ -69,7 +91,8 @@ const extensions = "https://developer.chrome.com/docs/extensions";
 const webstore = "https://developer.chrome.com/docs/webstore";
 
 chrome.action.onClicked.addListener((tab) => {
-  displayTabs();
+  displayInactiveTabs();
+  // displayTabs();
   displayLocalStorage();
   if (tab.url.startsWith(extensions) || tab.url.startsWith(webstore)) {
     const prevState = chrome.action.getBadgeText({ tabId: tab.id });
