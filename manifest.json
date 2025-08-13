@@ -38,6 +38,46 @@
         "default": "Ctrl+B",
         "mac": "Command+B"
       }
+    },
+    "goto_tab_1": {
+      "suggested_key": { "default": "Alt+1" },
+      "description": "Go to priority tab 1"
+    },
+    "goto_tab_2": {
+      "suggested_key": { "default": "Alt+2" },
+      "description": "Go to priority tab 2"
+    },
+    "goto_tab_3": {
+      "suggested_key": { "default": "Alt+3" },
+      "description": "Go to priority tab 3"
+    },
+    "goto_tab_4": {
+      "suggested_key": { "default": "Alt+4" },
+      "description": "Go to priority tab 4"
+    },
+    "goto_tab_5": {
+      "suggested_key": { "default": "Alt+5" },
+      "description": "Go to priority tab 5"
+    },
+    "goto_tab_6": {
+      "suggested_key": { "default": "Alt+6" },
+      "description": "Go to priority tab 6"
+    },
+    "goto_tab_7": {
+      "suggested_key": { "default": "Alt+7" },
+      "description": "Go to priority tab 7"
+    },
+    "goto_tab_8": {
+      "suggested_key": { "default": "Alt+8" },
+      "description": "Go to priority tab 8"
+    },
+    "goto_tab_9": {
+      "suggested_key": { "default": "Alt+9" },
+      "description": "Go to priority tab 9"
+    },
+    "goto_tab_0": {
+      "suggested_key": { "default": "Alt+0" },
+      "description": "Go to priority tab 0"
     }
   }
 }

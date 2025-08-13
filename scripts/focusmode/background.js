@@ -123,3 +123,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     cleanTabs();
   }
 });
+
+// Remapping of navigation hotkeys
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command.startsWith("goto_tab_")) {
+    let index = parseInt(command.replace("goto_tab_", "")) - 1;
+    let { priorityTabs = [] } = await chrome.storage.local.get("priorityTabs");
+    if (priorityTabs[index]) {
+      chrome.tabs.create({ url: priorityTabs[index].url });
+    }
+  }
+});
