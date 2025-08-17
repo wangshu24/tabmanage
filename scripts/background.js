@@ -4,11 +4,11 @@ chrome.runtime.onInstalled.addListener(() => {
     text: "Inactive",
   });
   chrome.alarms.create("periodicCheck", {
-    delayInMinutes: 10, //first run after 10min
-    periodInMinutes: 8, //periodic check every 8min
+    delayInMinutes: 1, //first run after 10min
+    periodInMinutes: 1, //periodic check every 8min
   });
 
-  chrome.storage.local.set({ pinnedTabs: [] });
+  chrome.storage.local.set({ priorityTabs: [] });
 });
 
 // Execution on startup
@@ -48,17 +48,19 @@ function displayInactiveTabs() {
   );
 }
 
+async function displayLocalStorage() {
+  tabs = await chrome.storage.local.get("priorityTabs");
+  console.log(tabs);
+}
+
+// To be rewritten into tabs match
+// Does deep comparisions to know if
+// it's the tab we want to keep
 const excludedURL = [
   "developer.chrome.com/docs/extensions/reference",
   "chatgpt.com/c/",
 ];
-
-async function displayLocalStorage() {
-  tabs = await chrome.storage.local.get("pinnedTabs");
-  console.log(tabs);
-}
-
-function patternMatch(url) {
+function URLMatch(url) {
   console.log("inspecting: ", url);
   return excludedURL.some((exurl) => url.includes(exurl));
 }
@@ -72,8 +74,9 @@ async function cleanTabs() {
       pinned: false,
     });
     for (tab of tabs) {
-      if (patternMatch(tab.url)) {
+      if (!URLMatch(tab.url)) {
         try {
+          console.log("discarding tab: ", tab.id, " with url: ", tab.url);
           await chrome.tabs.discard(tab.id);
         } catch (err) {
           console.log("error discaring tabs: ", err);
@@ -120,17 +123,50 @@ chrome.action.onClicked.addListener((tab) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "periodicCheck") {
     console.log("performing periodic check");
-    cleanTabs();
+    // cleanTabs();
   }
 });
 
-// Remapping of navigation hotkeys
+// Handle open-priority-overlay command
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command.startsWith("goto_tab_")) {
-    let index = parseInt(command.replace("goto_tab_", "")) - 1;
-    let { priorityTabs = [] } = await chrome.storage.local.get("priorityTabs");
-    if (priorityTabs[index]) {
-      chrome.tabs.create({ url: priorityTabs[index].url });
+  if (command === "open-priority-overlay") {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (tab?.id) {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["scripts/overlay.js"],
+      });
+    }
+  }
+});
+
+// Listen for adding a tab to priority list
+chrome.runtime.onMessage.addListener(async (msg, sender) => {
+  // displayInactiveTabs();
+  // displayLocalStorage();
+  console.log(msg, "sender: ", sender);
+  if (msg.action === "addPriorityTab" && sender.tab) {
+    let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+    if (priorityTabs.length >= 10) priorityTabs.shift();
+    priorityTabs.push({ id: sender.tab.id, title: sender.tab.title });
+    await chrome.storage.local.set({ priorityTabs });
+  }
+});
+
+// Switching tabs hotkey listener
+chrome.runtime.onMessage.addListener(async (msg) => {
+  if (msg.action === "switchToTab") {
+    const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+    const tabInfo = priorityTabs?.[msg.index];
+    if (tabInfo && tabInfo.id) {
+      try {
+        await chrome.tabs.update(tabInfo.id, { active: true });
+      } catch (e) {
+        console.warn("Tab may be closed, removing from priority list");
+      }
     }
   }
 });
