@@ -29,30 +29,6 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-async function displayTabs() {
-  tabs = await chrome.tabs.query({});
-  console.log("all tabs: ", tabs);
-}
-
-function displayInactiveTabs() {
-  chrome.tabs.query(
-    { active: false, audible: false, discarded: false, pinned: false },
-    (tabs) => {
-      console.log("displayInactiveTabs: ", tabs);
-      tabs.forEach((tab) => {
-        if (patternMatch(tab.url)) {
-          console.log("found match : ", tab.id, " ", tab.url);
-        }
-      });
-    }
-  );
-}
-
-async function displayLocalStorage() {
-  tabs = await chrome.storage.local.get("priorityTabs");
-  console.log(tabs);
-}
-
 // To be rewritten into tabs match
 // Does deep comparisions to know if
 // it's the tab we want to keep
@@ -60,14 +36,16 @@ const excludedURL = [
   "developer.chrome.com/docs/extensions/reference",
   "chatgpt.com/c/",
 ];
-function URLMatch(url) {
-  console.log("inspecting: ", url);
-  return excludedURL.some((exurl) => url.includes(exurl));
+async function URLMatch(url) {
+  localStorage = await getLocalStorage();
+  console.log("querying local for URL match: ", localStorage);
+  return localStorage.some((tab) => url.includes(tab.url));
 }
 
+// Discard tabs functionality
 async function cleanTabs() {
   try {
-    const tabs = await chrome.tabs.query({
+    let tabs = await chrome.tabs.query({
       active: false,
       audible: false,
       discarded: false,
@@ -81,8 +59,6 @@ async function cleanTabs() {
         } catch (err) {
           console.log("error discaring tabs: ", err);
         }
-      } else {
-        continue;
       }
     }
   } catch (err) {
@@ -90,69 +66,55 @@ async function cleanTabs() {
   }
 }
 
+function getStorage(key) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(key, (result) => resolve(result[key]));
+  });
+}
+
 const extensions = "https://developer.chrome.com/docs/extensions";
 const webstore = "https://developer.chrome.com/docs/webstore";
 
-chrome.action.onClicked.addListener((tab) => {
-  displayInactiveTabs();
-  // displayTabs();
-  displayLocalStorage();
-  if (tab.url.startsWith(extensions) || tab.url.startsWith(webstore)) {
-    const prevState = chrome.action.getBadgeText({ tabId: tab.id });
-    const nextState = prevState === "ON" ? "OFF" : "ON";
+// Listen for messages from popup.js
+chrome.runtime.onMessage.addListener(async (message) => {
+  console.log(message);
 
-    chrome.action.setBadgeText({
-      tabId: tab.id,
-      text: nextState,
-    });
-
-    if (nextState === "ON") {
-      chrome.scripting.insertCSS({
-        files: ["focus-mode.css"],
-        target: { tabId: tab.id },
-      });
-    } else if (nextState === "OFF") {
-      chrome.scripting.removeCSS({
-        files: ["focus-mode.css"],
-        target: { tabId: tab.id },
-      });
-    }
+  switch (message.action) {
+    case "getLocalStorage":
+      localStorage = await getLocalStorage();
+      console.log("display local storage: ", localStorage);
+      break;
+    case "displayDiscardedTabs":
+      displayDiscardedTabs();
+      break;
+    default:
   }
 });
 
+// Handle alarms
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "periodicCheck") {
     console.log("performing periodic check");
-    // cleanTabs();
+    cleanTabs();
+    getLocalStorage();
   }
 });
 
+// Open chord overlay
 // Handle open-priority-overlay command
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "open-priority-overlay") {
-    const [tab] = await chrome.tabs.query({
+    const [activeTab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
     });
-    if (tab?.id) {
+    if (activeTab?.id) {
+      console.log("injecting overlay.js");
       await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
+        target: { tabId: activeTab.id },
         files: ["scripts/overlay.js"],
       });
     }
-  }
-});
-
-// Listen for adding a tab to priority list
-chrome.runtime.onMessage.addListener(async (msg, sender) => {
-  // displayInactiveTabs();
-  // displayLocalStorage();
-  console.log(msg, "sender: ", sender);
-  if (msg.action === "addPriorityTab" && sender.tab) {
-    let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-    if (priorityTabs.length >= 10) priorityTabs.shift();
-    priorityTabs.push({ id: sender.tab.id, title: sender.tab.title });
-    await chrome.storage.local.set({ priorityTabs });
   }
 });
 
@@ -170,3 +132,38 @@ chrome.runtime.onMessage.addListener(async (msg) => {
     }
   }
 });
+
+//// Developer utilities function ////
+async function displayAllTabs() {
+  tabs = await chrome.tabs.query({});
+  console.log("all tabs: ", tabs);
+}
+
+async function displayDiscardedTabs() {
+  tabs = await chrome.tabs.query({ discarded: true });
+  console.log("discarded tabs: ", tabs);
+}
+
+async function getLocalStorage() {
+  const tabs = await getStorage("priorityTabs");
+  console.log(tabs); // now this will show the updated list
+}
+
+function displayInactiveTabs() {
+  chrome.tabs.query(
+    { active: false, audible: false, discarded: false, pinned: false },
+    (tabs) => {
+      console.log("displayInactiveTabs: ", tabs);
+      tabs.forEach((tab) => {
+        if (URLMatch(tab.url)) {
+          console.log("found match : ", tab.id, " ", tab.url);
+        }
+      });
+    }
+  );
+}
+
+async function getLocalStorage() {
+  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+  return priorityTabs;
+}

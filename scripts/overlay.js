@@ -1,6 +1,7 @@
 (async function () {
+  console.log("init popup.js");
   if (document.getElementById("priority-overlay")) return;
-
+  console.log("script activated");
   const overlay = document.createElement("div");
   overlay.id = "priority-overlay";
   overlay.style.position = "fixed";
@@ -19,11 +20,12 @@
   overlay.innerHTML =
     "<b>Priority Tabs:</b><br>" +
     list.map((t, i) => `${i + 1}. ${t.title}`).join("<br>") +
-    "<br><small>Press 1–0 to switch</small>";
+    "<br><small>Press 1 - 0 to switch</small>";
 
   document.body.appendChild(overlay);
 
   const keyHandler = (e) => {
+    console.log("received event: ", e);
     if (/^[0-9]$/.test(e.key)) {
       let idx = parseInt(e.key, 10) - 1;
       if (e.key === "0") idx = 9; // map 0 → 10th tab
@@ -42,10 +44,3 @@
 
   document.addEventListener("keydown", keyHandler);
 })();
-
-// Add current tab to storage
-document.getElementById("add").addEventListener("click", async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  console.log(tab);
-  chrome.runtime.sendMessage({ action: "addPriorityTab" });
-});
