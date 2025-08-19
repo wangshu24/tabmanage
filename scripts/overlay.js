@@ -23,24 +23,35 @@
     "<br><small>Press 1 - 0 to switch</small>";
 
   document.body.appendChild(overlay);
+  let altDown = false;
+  let pDown = false;
 
-  const keyHandler = (e) => {
-    console.log("received event: ", e);
-    if (/^[0-9]$/.test(e.key)) {
+  function keyDownHandler(e) {
+    if (e.key === "Alt") altDown = true;
+    if (e.key.toLowerCase() === "p") pDown = true;
+
+    if (/^[0-9]$/.test(e.key) && altDown && pDown) {
       let idx = parseInt(e.key, 10) - 1;
       if (e.key === "0") idx = 9; // map 0 → 10th tab
       if (list[idx]) {
+        console.log("combo detected: Alt+P+" + e.key);
         chrome.runtime.sendMessage({ action: "switchToTab", index: idx });
         removeOverlay();
       }
     }
-    if (e.key === "Escape") removeOverlay();
-  };
+  }
+
+  function keyUpHandler(e) {
+    if (e.key === "Alt") altDown = false;
+    if (e.key.toLowerCase() === "p") pDown = false;
+  }
 
   function removeOverlay() {
-    document.removeEventListener("keydown", keyHandler);
+    document.removeEventListener("keydown", keyDownHandler);
+    document.removeEventListener("keyup", keyUpHandler);
     overlay.remove();
   }
 
-  document.addEventListener("keydown", keyHandler);
+  document.addEventListener("keydown", keyDownHandler);
+  document.addEventListener("keyup", keyUpHandler);
 })();

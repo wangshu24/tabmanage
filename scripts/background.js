@@ -29,19 +29,6 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-// To be rewritten into tabs match
-// Does deep comparisions to know if
-// it's the tab we want to keep
-const excludedURL = [
-  "developer.chrome.com/docs/extensions/reference",
-  "chatgpt.com/c/",
-];
-async function URLMatch(url) {
-  localStorage = await getLocalStorage();
-  console.log("querying local for URL match: ", localStorage);
-  return localStorage.some((tab) => url.includes(tab.url));
-}
-
 // Discard tabs functionality
 async function cleanTabs() {
   try {
@@ -77,17 +64,15 @@ const webstore = "https://developer.chrome.com/docs/webstore";
 
 // Listen for messages from popup.js
 chrome.runtime.onMessage.addListener(async (message) => {
-  console.log(message);
-
   switch (message.action) {
     case "getLocalStorage":
-      localStorage = await getLocalStorage();
-      console.log("display local storage: ", localStorage);
+      await getLocalStorage();
       break;
     case "displayDiscardedTabs":
       displayDiscardedTabs();
       break;
     default:
+      console.log("default handler: ", message);
   }
 });
 
@@ -120,6 +105,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Switching tabs hotkey listener
 chrome.runtime.onMessage.addListener(async (msg) => {
+  console.log("switchToTab message triggered: ", msg);
   if (msg.action === "switchToTab") {
     const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
     const tabInfo = priorityTabs?.[msg.index];
@@ -134,6 +120,11 @@ chrome.runtime.onMessage.addListener(async (msg) => {
 });
 
 //// Developer utilities function ////
+async function URLMatch(url) {
+  localStorage = await getLocalStorage();
+  return localStorage.some((tab) => url.includes(tab.url));
+}
+
 async function displayAllTabs() {
   tabs = await chrome.tabs.query({});
   console.log("all tabs: ", tabs);
