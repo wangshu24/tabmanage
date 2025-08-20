@@ -62,7 +62,9 @@ function getStorage(key) {
 const extensions = "https://developer.chrome.com/docs/extensions";
 const webstore = "https://developer.chrome.com/docs/webstore";
 
-// Listen for messages from popup.js
+// Message handler pipeline
+// Listen for all messages
+// From popup.js and overlay.js
 chrome.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
     case "getLocalStorage":
@@ -72,7 +74,15 @@ chrome.runtime.onMessage.addListener(async (message) => {
       displayDiscardedTabs();
       break;
     case "switchToTab":
-      console.log("switchToTab handler: ", message);
+      const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+      const tabInfo = priorityTabs?.[message.index];
+      if (tabInfo && tabInfo.id) {
+        try {
+          await chrome.tabs.update(tabInfo.id, { active: true });
+        } catch (e) {
+          console.warn("Tab may be closed, removing from priority list");
+        }
+      }
       break;
     default:
       console.log("default message handler: ", message);
@@ -102,22 +112,6 @@ chrome.commands.onCommand.addListener(async (command) => {
         target: { tabId: activeTab.id },
         files: ["scripts/overlay.js"],
       });
-    }
-  }
-});
-
-// Switching tabs hotkey listener
-chrome.runtime.onMessage.addListener(async (msg) => {
-  console.log("switchToTab message triggered: ", msg);
-  if (msg.action === "switchToTab") {
-    const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-    const tabInfo = priorityTabs?.[msg.index];
-    if (tabInfo && tabInfo.id) {
-      try {
-        await chrome.tabs.update(tabInfo.id, { active: true });
-      } catch (e) {
-        console.warn("Tab may be closed, removing from priority list");
-      }
     }
   }
 });
