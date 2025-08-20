@@ -1,8 +1,5 @@
 // Initial install con
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.action.setBadgeText({
-    text: "Inactive",
-  });
   chrome.alarms.create("periodicCheck", {
     delayInMinutes: 1, //first run after 10min
     periodInMinutes: 1, //periodic check every 8min

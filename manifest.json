@@ -5,24 +5,18 @@
   "description": "Add the reading time to Chrome Extension documentation articles",
 
   "icons": {
-    "16": "images/icon-16.png",
-    "32": "images/icon-32.png",
-    "48": "images/icon-48.png",
-    "128": "images/icon-128.png"
+    "16": "images/icon16.png",
+    "32": "images/icon32.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
   },
-  "content_scripts": [
-    {
-      "js": ["scripts/readtime/content.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "images/icon-16.png",
-      "32": "images/icon-32.png",
-      "48": "images/icon-48.png",
-      "128": "images/icon-128.png"
+      "16": "images/icon16.png",
+      "32": "images/icon32.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
     }
   },
   "background": {
