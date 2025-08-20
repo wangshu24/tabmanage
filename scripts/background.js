@@ -71,8 +71,11 @@ chrome.runtime.onMessage.addListener(async (message) => {
     case "displayDiscardedTabs":
       displayDiscardedTabs();
       break;
+    case "switchToTab":
+      console.log("switchToTab handler: ", message);
+      break;
     default:
-      console.log("default handler: ", message);
+      console.log("default message handler: ", message);
   }
 });
 
