@@ -67,12 +67,17 @@ const webstore = "https://developer.chrome.com/docs/webstore";
 // From popup.js and overlay.js
 chrome.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
+    // Dev util
     case "getLocalStorage":
       await getLocalStorage();
       break;
+
+    // Dev util
     case "displayDiscardedTabs":
       displayDiscardedTabs();
       break;
+
+    // Handle priority tabs overlay and hotkey switch
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
       const tabInfo = priorityTabs?.[message.index];
@@ -84,6 +89,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
         }
       }
       break;
+
     default:
       console.log("default message handler: ", message);
   }

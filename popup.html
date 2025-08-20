@@ -1,9 +1,101 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 12px;
+      min-width: 240px;
+      background: #f9f9f9;
+      color: #333;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 16px;
+      color: #222;
+    }
+
+    button {
+      display: inline-block;
+      margin: 4px 4px 12px 0;
+      padding: 6px 12px;
+      font-size: 13px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    #priority-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px; /* spacing between items */
+    }
+
+    .tab-item {
+      padding: 6px 8px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .tab-item span {
+      display: block;
+      color: #555;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    @keyframes blink-border {
+      0%   { box-shadow: 0 0 0 0 red; }
+      50%  { box-shadow: 0 0 6px 2px red; }
+      100% { box-shadow: 0 0 0 0 red; }
+    }
+
+.tab-item.blink {
+  animation: blink-border 0.8s ease-in-out 2; /* blink twice */
+}
+
+  </style>
+</head>
 <body>
-  <button id="add">Add Current Tab</button>
-  <button id="refresh">Display console</button>
+  <h2>Priority Tabs</h2>
+  <button id="add">
+  <svg width="14" height="14" viewBox="0 0 24 24" 
+       fill="none" stroke="currentColor" stroke-width="2" 
+       stroke-linecap="round" stroke-linejoin="round" 
+       style="vertical-align: middle; margin-right: 4px;">
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+  Add Current Tab
+</button>
+
+<button id="refresh">
+  <svg width="14" height="14" viewBox="0 0 24 24" 
+       fill="none" stroke="currentColor" stroke-width="2" 
+       stroke-linecap="round" stroke-linejoin="round" 
+       style="vertical-align: middle; margin-right: 4px;">
+    <polyline points="23 4 23 10 17 10"></polyline>
+    <polyline points="1 20 1 14 7 14"></polyline>
+    <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+    <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+  </svg>
+  Refresh
+</button>
+
+
   <div id="priority-tabs"></div>
+
   <script src="./scripts/popup.js"></script>
 </body>
 </html>
