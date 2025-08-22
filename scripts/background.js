@@ -1,4 +1,5 @@
-import { getPriorityTabs } from "./shared/priorityTab";
+import { getPriorityTabs } from "./shared/priorityTab.js";
+
 /************************************************************
  * CHROME SETUP
  * ----------------------------------------------------------
@@ -144,7 +145,7 @@ async function cleanTabs() {
  * Check if url is in local storage.
  */
 async function URLMatch(url) {
-  localStorage = await getPriorityTabs();
+  const localStorage = await getPriorityTabs();
   console.log("local storage: ", localStorage);
   return localStorage.some((tab) => url === tab.url);
 }
@@ -153,7 +154,7 @@ async function URLMatch(url) {
  * Display all tabs.
  */
 async function displayAllTabs() {
-  tabs = await chrome.tabs.query({});
+  const tabs = await chrome.tabs.query({});
   console.log("all tabs: ", tabs);
 }
 
@@ -161,7 +162,7 @@ async function displayAllTabs() {
  * Display all discarded tabs.
  */
 async function displayDiscardedTabs() {
-  tabs = await chrome.tabs.query({ discarded: true });
+  const tabs = await chrome.tabs.query({ discarded: true });
   console.log("discarded tabs: ", tabs);
 }
 
