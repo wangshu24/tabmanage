@@ -64,4 +64,5 @@ document.getElementById("refresh").addEventListener("click", () => {
   chrome.runtime.sendMessage({ action: "displayDiscardedTabs" });
   chrome.runtime.sendMessage({ action: "getLocalStorage" });
   chrome.runtime.sendMessage({ action: "displayAllTabs" });
+  chrome.runtime.sendMessage({ action: "displayInactiveTabs" });
 });

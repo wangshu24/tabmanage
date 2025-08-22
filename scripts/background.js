@@ -72,10 +72,10 @@ chrome.runtime.onMessage.addListener(async (message) => {
 });
 
 // Handle alarms
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "periodicCheck") {
     cleanTabs();
-    getLocalStorage();
+    await getLocalStorage();
   }
 });
 
@@ -111,31 +111,17 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
  ************************************************************/
 
 /**
- * Get a value from chrome storage.
- * @param {string} key - The key to retrieve.
- * @returns {Promise<any>} A promise that resolves with the value.
- */
-function getStorage(key) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(key, (result) => resolve(result[key]));
-  });
-}
-
-/**
  * Clean tabs by discarding inactive tabs.
  */
 async function cleanTabs() {
   try {
-    let tabs = await chrome.tabs.query({
-      active: false,
-      audible: false,
-      discarded: false,
-      pinned: false,
-    });
+    let tabs = await getAllNonActiveTabs();
+    console.log("cleanTabs: ", tabs);
+
     for (tab of tabs) {
       if (!URLMatch(tab.url)) {
         try {
-          await chrome.tabs.discard(tab.id);
+          chrome.tabs.discard(tab.id);
         } catch (err) {
           console.warn("error discaring tabs: ", err);
         }
@@ -144,14 +130,15 @@ async function cleanTabs() {
   } catch (err) {
     console.warn("error from cleanTabs operation: ", err);
   }
+  tab = null;
 }
 
 /**
  * Get all tabs from local storage.
  */
 async function getLocalStorage() {
-  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-  return priorityTabs;
+  let result = await chrome.storage.local.get("priorityTabs");
+  return result.priorityTabs;
 }
 
 /************************************************************
@@ -163,8 +150,8 @@ async function getLocalStorage() {
 /**
  * Log messages only when in dev mode.
  */
-function URLMatch(url) {
-  localStorage = getLocalStorage();
+async function URLMatch(url) {
+  localStorage = await getLocalStorage();
   console.log("local storage: ", localStorage);
   return localStorage.some((tab) => url.includes(tab.url));
 }
@@ -186,26 +173,27 @@ async function displayDiscardedTabs() {
 }
 
 /**
- * Get all tabs from local storage.
+ * Get all inactive tabs.
  */
-async function getLocalStorage() {
-  const tabs = await getStorage("priorityTabs");
-  console.log(tabs);
+async function getAllNonActiveTabs() {
+  const tabs = await chrome.tabs.query({
+    active: false,
+    audible: false,
+    discarded: false,
+    pinned: false,
+  });
+  return tabs;
 }
 
 /**
  * Display all inactive tabs.
  */
-function displayInactiveTabs() {
-  chrome.tabs.query(
-    { active: false, audible: false, discarded: false, pinned: false },
-    (tabs) => {
-      console.log("displayInactiveTabs: ", tabs);
-      tabs.forEach((tab) => {
-        if (URLMatch(tab.url)) {
-          console.log("found inactive pinned tab: ", tab.id, " ", tab.url);
-        }
-      });
+async function displayInactiveTabs() {
+  const tabs = await getAllNonActiveTabs();
+  console.log("displayInactiveTabs: ", tabs);
+  tabs.forEach((tab) => {
+    if (URLMatch(tab.url)) {
+      console.log("found inactive pinned tab: ", tab.id, " ", tab.url);
     }
-  );
+  });
 }
