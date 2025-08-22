@@ -67,7 +67,9 @@ chrome.runtime.onMessage.addListener(async (message) => {
         }
       }
       break;
-
+    case "findDivergentTabs":
+      findDivergentTabs();
+      break;
     default:
       console.log("default message handler: ", message);
   }
@@ -125,12 +127,12 @@ async function cleanTabs() {
         try {
           chrome.tabs.discard(tab.id);
         } catch (err) {
-          console.warn("error discaring tabs: ", err);
+          console.error("error discaring tabs: ", err);
         }
       }
     }
   } catch (err) {
-    console.warn("error from cleanTabs operation: ", err);
+    console.error("error from cleanTabs operation: ", err);
   }
   tab = null;
 }
@@ -189,6 +191,30 @@ async function displayInactiveTabs() {
   for (const tab of tabs) {
     if (await URLMatch(tab.url)) {
       console.warn("found inactive pinned tab: ", tab.id, " ", tab.url);
+    }
+  }
+}
+
+async function findDivergentTabs() {
+  console.log("findDivergentTabs");
+  const tabs = await chrome.tabs.query({});
+  const localStorage = await getPriorityTabs();
+
+  let pinned = {};
+  for (const storedTab of localStorage) {
+    pinned[storedTab.id] = storedTab.url;
+  }
+
+  for (const tab of tabs) {
+    if (pinned[tab.id] && pinned[tab.id] !== tab.url) {
+      console.warn(
+        "found divergent tab: ",
+        tab.id,
+        " ",
+        tab.url,
+        " differ from ",
+        pinned[tab.id]
+      );
     }
   }
 }

@@ -65,4 +65,5 @@ document.getElementById("refresh").addEventListener("click", () => {
   chrome.runtime.sendMessage({ action: "getPriorityTabs" });
   chrome.runtime.sendMessage({ action: "displayAllTabs" });
   chrome.runtime.sendMessage({ action: "displayInactiveTabs" });
+  chrome.runtime.sendMessage({ action: "findDivergentTabs" });
 });
