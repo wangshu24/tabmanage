@@ -195,6 +195,9 @@ async function displayInactiveTabs() {
   }
 }
 
+/**
+ * Find divergent tabs.
+ */
 async function findDivergentTabs() {
   console.log("findDivergentTabs");
   const tabs = await chrome.tabs.query({});
