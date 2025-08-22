@@ -1,4 +1,10 @@
-// Initial install con
+/************************************************************
+ * CHROME SETUP
+ * ----------------------------------------------------------
+ * Handles integration with Chrome APIs (tabs, storage, etc.)
+ ************************************************************/
+
+// Initialize extension configuration when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create("periodicCheck", {
     delayInMinutes: 1, //first run after 10min
@@ -25,35 +31,6 @@ chrome.runtime.onStartup.addListener(async () => {
     }
   }
 });
-
-// Discard tabs functionality
-async function cleanTabs() {
-  try {
-    let tabs = await chrome.tabs.query({
-      active: false,
-      audible: false,
-      discarded: false,
-      pinned: false,
-    });
-    for (tab of tabs) {
-      if (!URLMatch(tab.url)) {
-        try {
-          await chrome.tabs.discard(tab.id);
-        } catch (err) {
-          console.warn("error discaring tabs: ", err);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("error from cleanTabs operation: ", err);
-  }
-}
-
-function getStorage(key) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(key, (result) => resolve(result[key]));
-  });
-}
 
 const extensions = "https://developer.chrome.com/docs/extensions";
 const webstore = "https://developer.chrome.com/docs/webstore";
@@ -116,27 +93,97 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-//// Developer utilities function ////
+/************************************************************
+ * SERVICE FUNCTIONS
+ * ----------------------------------------------------------
+ * Core helpers that manage business logic for the extension
+ ************************************************************/
+
+/**
+ * Get a value from chrome storage.
+ * @param {string} key - The key to retrieve.
+ * @returns {Promise<any>} A promise that resolves with the value.
+ */
+function getStorage(key) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(key, (result) => resolve(result[key]));
+  });
+}
+
+/**
+ * Clean tabs by discarding inactive tabs.
+ */
+async function cleanTabs() {
+  try {
+    let tabs = await chrome.tabs.query({
+      active: false,
+      audible: false,
+      discarded: false,
+      pinned: false,
+    });
+    for (tab of tabs) {
+      if (!URLMatch(tab.url)) {
+        try {
+          await chrome.tabs.discard(tab.id);
+        } catch (err) {
+          console.warn("error discaring tabs: ", err);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("error from cleanTabs operation: ", err);
+  }
+}
+
+/**
+ * Get all tabs from local storage.
+ */
+async function getLocalStorage() {
+  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+  return priorityTabs;
+}
+
+/************************************************************
+ * DEV UTILITIES
+ * ----------------------------------------------------------
+ * Debugging, monitoring, and testing-only helpers
+ ************************************************************/
+
+/**
+ * Log messages only when in dev mode.
+ */
 async function URLMatch(url) {
   localStorage = await getLocalStorage();
   return localStorage.some((tab) => url.includes(tab.url));
 }
 
+/**
+ * Display all tabs.
+ */
 async function displayAllTabs() {
   tabs = await chrome.tabs.query({});
   console.log("all tabs: ", tabs);
 }
 
+/**
+ * Display all discarded tabs.
+ */
 async function displayDiscardedTabs() {
   tabs = await chrome.tabs.query({ discarded: true });
   console.log("discarded tabs: ", tabs);
 }
 
+/**
+ * Get all tabs from local storage.
+ */
 async function getLocalStorage() {
   const tabs = await getStorage("priorityTabs");
   console.log(tabs);
 }
 
+/**
+ * Display all inactive tabs.
+ */
 function displayInactiveTabs() {
   chrome.tabs.query(
     { active: false, audible: false, discarded: false, pinned: false },
@@ -149,9 +196,4 @@ function displayInactiveTabs() {
       });
     }
   );
-}
-
-async function getLocalStorage() {
-  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-  return priorityTabs;
 }
