@@ -1,3 +1,5 @@
+import { getPriorityTabs } from "./shared/priorityTab.js";
+
 (async function () {
   if (document.getElementById("priority-overlay")) return;
 
@@ -8,21 +10,23 @@
     background:rgba(0,0,0,0.8);color:white;
     padding:10px;border-radius:8px;
     font-family:sans-serif;z-index:999999;
+    cursor: pointer;
   `;
 
-  const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-  const list = priorityTabs || [];
+  const list = await getPriorityTabs();
 
   overlay.innerHTML =
     "<b>Priority Tabs:</b><br>" +
     list.map((t, i) => `${i + 1}. ${t.title}`).join("<br>") +
-    "<br><small>Press 1 - 0 to switch</small>";
+    "<br><small>Press 1 - 0 to switch</small>" +
+    "<br><small>(Click to close · Press 1-0 to switch)</small>";
 
   document.body.appendChild(overlay);
 
   function removeOverlay() {
     document.removeEventListener("keydown", keyHandler);
     overlay.remove();
+    document = null;
   }
 
   const keyHandler = (e) => {

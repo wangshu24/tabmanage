@@ -1,3 +1,4 @@
+import { getPriorityTabs } from "./shared/priorityTab";
 /************************************************************
  * CHROME SETUP
  * ----------------------------------------------------------
@@ -41,8 +42,8 @@ const webstore = "https://developer.chrome.com/docs/webstore";
 chrome.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
     // Dev util
-    case "getLocalStorage":
-      await getLocalStorage();
+    case "getPriorityTabs":
+      await getPriorityTabs();
       break;
     // Dev util
     case "displayDiscardedTabs":
@@ -75,7 +76,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "periodicCheck") {
     cleanTabs();
-    await getLocalStorage();
+    await getPriorityTabs();
   }
 });
 
@@ -133,16 +134,6 @@ async function cleanTabs() {
   tab = null;
 }
 
-/**
- * Get all tabs from local storage.
- * Returns an array of tab objects
- */
-async function getLocalStorage() {
-  let result = await chrome.storage.local.get("priorityTabs");
-  console.log("getLocalStorage: ", result);
-  return result.priorityTabs;
-}
-
 /************************************************************
  * DEV UTILITIES
  * ----------------------------------------------------------
@@ -153,7 +144,7 @@ async function getLocalStorage() {
  * Check if url is in local storage.
  */
 async function URLMatch(url) {
-  localStorage = await getLocalStorage();
+  localStorage = await getPriorityTabs();
   console.log("local storage: ", localStorage);
   return localStorage.some((tab) => url === tab.url);
 }
