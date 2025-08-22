@@ -93,6 +93,13 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
+// Handle re-indexing priority tabs on inactive tabs removal
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+  const updatedPriorityTabs = priorityTabs.filter((tab) => tab.id !== tabId);
+  await chrome.storage.local.set({ priorityTabs: updatedPriorityTabs });
+});
+
 /************************************************************
  * SERVICE FUNCTIONS
  * ----------------------------------------------------------
