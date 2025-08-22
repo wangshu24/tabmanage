@@ -44,12 +44,15 @@ chrome.runtime.onMessage.addListener(async (message) => {
     case "getLocalStorage":
       await getLocalStorage();
       break;
-
     // Dev util
     case "displayDiscardedTabs":
       displayDiscardedTabs();
       break;
-
+    case "displayInactiveTabs":
+      displayInactiveTabs();
+    case "displayAllTabs":
+      displayAllTabs();
+      break;
     // Handle priority tabs overlay and hotkey switch
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
@@ -95,6 +98,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Handle re-indexing priority tabs on inactive tabs removal
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  console.log("tab removed: ", tabId);
   const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
   const updatedPriorityTabs = priorityTabs.filter((tab) => tab.id !== tabId);
   await chrome.storage.local.set({ priorityTabs: updatedPriorityTabs });
@@ -159,8 +163,9 @@ async function getLocalStorage() {
 /**
  * Log messages only when in dev mode.
  */
-async function URLMatch(url) {
-  localStorage = await getLocalStorage();
+function URLMatch(url) {
+  localStorage = getLocalStorage();
+  console.log("local storage: ", localStorage);
   return localStorage.some((tab) => url.includes(tab.url));
 }
 
