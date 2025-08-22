@@ -26,7 +26,7 @@ document.getElementById("add").addEventListener("click", async () => {
       return;
     }
 
-    // ✅ Add new tab
+    // Add new tab
     if (tabs.length >= 10) tabs.shift();
     tabs.push(newTab);
     chrome.storage.local.set({ priorityTabs: tabs });
