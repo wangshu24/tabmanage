@@ -38,15 +38,14 @@ async function cleanTabs() {
     for (tab of tabs) {
       if (!URLMatch(tab.url)) {
         try {
-          console.log("discarding tab: ", tab.id, " with url: ", tab.url);
           await chrome.tabs.discard(tab.id);
         } catch (err) {
-          console.log("error discaring tabs: ", err);
+          console.warn("error discaring tabs: ", err);
         }
       }
     }
   } catch (err) {
-    console.log("error from cleanTabs operation: ", err);
+    console.warn("error from cleanTabs operation: ", err);
   }
 }
 
@@ -95,7 +94,6 @@ chrome.runtime.onMessage.addListener(async (message) => {
 // Handle alarms
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "periodicCheck") {
-    console.log("performing periodic check");
     cleanTabs();
     getLocalStorage();
   }
@@ -110,7 +108,6 @@ chrome.commands.onCommand.addListener(async (command) => {
       currentWindow: true,
     });
     if (activeTab?.id) {
-      console.log("injecting overlay.js");
       await chrome.scripting.executeScript({
         target: { tabId: activeTab.id },
         files: ["scripts/overlay.js"],
@@ -137,7 +134,7 @@ async function displayDiscardedTabs() {
 
 async function getLocalStorage() {
   const tabs = await getStorage("priorityTabs");
-  console.log(tabs); // now this will show the updated list
+  console.log(tabs);
 }
 
 function displayInactiveTabs() {
@@ -147,7 +144,7 @@ function displayInactiveTabs() {
       console.log("displayInactiveTabs: ", tabs);
       tabs.forEach((tab) => {
         if (URLMatch(tab.url)) {
-          console.log("found match : ", tab.id, " ", tab.url);
+          console.log("found inactive pinned tab: ", tab.id, " ", tab.url);
         }
       });
     }

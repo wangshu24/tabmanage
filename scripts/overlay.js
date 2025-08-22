@@ -27,7 +27,6 @@
 
   const keyHandler = (e) => {
     if (/^[0-9]$/.test(e.key)) {
-      console.log("received key: ", e.key);
       let idx = parseInt(e.key, 10) - 1;
       if (e.key === "0") idx = 9; // map 0 → 10th tab
       if (list[idx]) {

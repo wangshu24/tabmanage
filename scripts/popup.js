@@ -14,7 +14,7 @@ document.getElementById("add").addEventListener("click", async () => {
     const isTabNew = tabs.some((t) => t.url === newTab.url);
 
     if (isTabNew) {
-      // 🔴 Tab already exists → blink its entry
+      // Tab already exists → blink its entry
       const existing = document.querySelector(
         `.tab-item[data-url="${CSS.escape(newTab.url)}"]`
       );
@@ -32,18 +32,6 @@ document.getElementById("add").addEventListener("click", async () => {
     chrome.storage.local.set({ priorityTabs: tabs });
   });
 });
-
-function isTabStored(newTab, storedTabs) {
-  return storedTabs.some((tab) => {
-    console.log(
-      "inspecting tab: ",
-      tab,
-      "found tab === newTab: ",
-      tab.url === newTab.url
-    );
-    return tab.url === newTab.url;
-  });
-}
 
 // Listen for changes and update UI live
 chrome.storage.onChanged.addListener((changes, areaName) => {
