@@ -7,8 +7,8 @@
 // Initialize extension configuration when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create("periodicCheck", {
-    delayInMinutes: 1, //first run after 10min
-    periodInMinutes: 1, //periodic check every 8min
+    delayInMinutes: 1, //first run after 1min
+    periodInMinutes: 10, //periodic check every 10min
   });
 
   chrome.storage.local.set({ priorityTabs: [] });
