@@ -8,6 +8,8 @@ import { getPriorityTabs } from "./shared/priorityTab.js";
 
 // Initialize extension configuration when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
+  console.info("Extension installed");
+
   chrome.alarms.create("periodicCheck", {
     delayInMinutes: 1, //first run after 1min
     periodInMinutes: 10, //periodic check every 10min
@@ -108,6 +110,24 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   await chrome.storage.local.set({ priorityTabs });
 });
 
+// Handle normal navigations (full reload, non-SPA)
+// Fires when a tab updates (like URL change, title, status, etc.)
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  if (changeInfo.url) {
+    console.log("Tab URL changed (normal):", tabId, changeInfo.url);
+    await updatePriorityTabURL(tabId, changeInfo.url);
+  }
+});
+
+// Handle SPA navigations (history.pushState / replaceState)
+// This catches URL changes without page reload
+chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
+  if (details.url) {
+    console.log("Tab URL changed (SPA):", details.tabId, details.url);
+    await updatePriorityTabURL(details.tabId, details.url);
+  }
+});
+
 /************************************************************
  * SERVICE FUNCTIONS
  * ----------------------------------------------------------
@@ -123,7 +143,7 @@ async function cleanTabs() {
     console.log("cleanTabs: ", tabs);
 
     for (tab of tabs) {
-      if (!URLMatch(tab.url)) {
+      if (!tabMatch(tab)) {
         try {
           chrome.tabs.discard(tab.id);
         } catch (err) {
@@ -134,7 +154,23 @@ async function cleanTabs() {
   } catch (err) {
     console.error("error from cleanTabs operation: ", err);
   }
-  tab = null;
+  tabs = null;
+}
+
+// Utility to refresh stored URL for a priority tab
+async function updatePriorityTabURL(tabId, newURL) {
+  let priorityTabs = await getPriorityTabs();
+  if (priorityTabs.length === 0) {
+    priorityTabs = null;
+    return;
+  }
+
+  const index = priorityTabs.findIndex((t) => t.id === tabId);
+  if (index !== -1) {
+    priorityTabs[index].url = newURL;
+    chrome.storage.local.set({ priorityTabs });
+    console.log("Priority tab URL updated:", priorityTabs[index]);
+  }
 }
 
 /************************************************************
@@ -145,8 +181,9 @@ async function cleanTabs() {
 
 /**
  * Check if url is in local storage.
+ * @param {Object} tab - Tab to check
  */
-async function URLMatch(url) {
+async function tabMatch(url) {
   const localStorage = await getPriorityTabs();
   console.log("local storage: ", localStorage);
   return localStorage.some((tab) => url === tab.url);
@@ -189,7 +226,7 @@ async function displayInactiveTabs() {
   console.log("displayInactiveTabs: ", tabs);
 
   for (const tab of tabs) {
-    if (await URLMatch(tab.url)) {
+    if (await tabMatch(tab)) {
       console.warn("found inactive pinned tab: ", tab.id, " ", tab.url);
     }
   }
