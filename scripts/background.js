@@ -36,9 +36,6 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-const extensions = "https://developer.chrome.com/docs/extensions";
-const webstore = "https://developer.chrome.com/docs/webstore";
-
 // Message handler pipeline
 // Listen for all messages
 // From popup.js and overlay.js
@@ -185,7 +182,6 @@ async function updatePriorityTabURL(tabId, newURL) {
  */
 async function tabMatch(url) {
   const localStorage = await getPriorityTabs();
-  console.log("local storage: ", localStorage);
   return localStorage.some((tab) => url === tab.url);
 }
 
