@@ -64,6 +64,41 @@ export function listenPriorityTabsChanges(callback) {
 }
 
 /**
+ * Update priority tab with new information
+ * This function is called by the chrome.tabs.onUpdated listener
+ * @param {string} string -  ID of tab being updated
+ * @param {Object} newTab - Chrome Tab object
+ */
+export async function updatePriorityTab(tabId, newTab) {
+  let priorityTabs = await getPriorityTabs();
+  if (priorityTabs.length === 0) {
+    priorityTabs = null;
+    return;
+  }
+
+  const index = priorityTabs.findIndex((t) => t.id === tabId);
+  if (index !== -1) {
+    if (newTab.url) priorityTabs[index].url = newTab.url;
+    if (newTab.title) priorityTabs[index].title = newTab.title;
+    if (newTab.favIconUrl) priorityTabs[index].favIconUrl = newTab.favIconUrl;
+    chrome.storage.local.set({ priorityTabs: priorityTabs });
+    console.log("Priority tab URL updated:", priorityTabs[index]);
+  }
+}
+
+/**
+ * Forecful update priority tab with new information
+ * This function is called by the chrome.webNavigation.onHistoryStateUpdated listener
+ */
+export async function forceUpdatePriorityTab(tabId, newTab) {
+  let priorityTabs = await getPriorityTabs();
+  if (priorityTabs.length === 0) {
+    priorityTabs = null;
+    return;
+  }
+}
+
+/**
  * Render priority tabs into a container:
  *   1. priorityTabs storage changes
  *   2. a tab is closed
