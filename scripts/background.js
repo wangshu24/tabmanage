@@ -1,3 +1,5 @@
+import { getPriorityTabs } from "./shared/priorityTab.js";
+
 /************************************************************
  * CHROME SETUP
  * ----------------------------------------------------------
@@ -6,6 +8,8 @@
 
 // Initialize extension configuration when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
+  console.info("Extension installed");
+
   chrome.alarms.create("periodicCheck", {
     delayInMinutes: 1, //first run after 1min
     periodInMinutes: 10, //periodic check every 10min
@@ -32,24 +36,24 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 });
 
-const extensions = "https://developer.chrome.com/docs/extensions";
-const webstore = "https://developer.chrome.com/docs/webstore";
-
 // Message handler pipeline
 // Listen for all messages
 // From popup.js and overlay.js
 chrome.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
     // Dev util
-    case "getLocalStorage":
-      await getLocalStorage();
+    case "getPriorityTabs":
+      await getPriorityTabs();
       break;
-
     // Dev util
     case "displayDiscardedTabs":
       displayDiscardedTabs();
       break;
-
+    case "displayInactiveTabs":
+      displayInactiveTabs();
+    case "displayAllTabs":
+      displayAllTabs();
+      break;
     // Handle priority tabs overlay and hotkey switch
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
@@ -62,17 +66,19 @@ chrome.runtime.onMessage.addListener(async (message) => {
         }
       }
       break;
-
+    case "findDivergentTabs":
+      findDivergentTabs();
+      break;
     default:
       console.log("default message handler: ", message);
   }
 });
 
 // Handle alarms
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "periodicCheck") {
     cleanTabs();
-    getLocalStorage();
+    await getPriorityTabs();
   }
 });
 
@@ -93,6 +99,32 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
+// Handle re-indexing priority tabs on inactive tabs removal
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  console.log("tab removed: ", tabId);
+  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+  priorityTabs = (priorityTabs || []).filter((t) => t.id !== tabId);
+  await chrome.storage.local.set({ priorityTabs });
+});
+
+// Handle normal navigations (full reload, non-SPA)
+// Fires when a tab updates (like URL change, title, status, etc.)
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete") {
+    console.log("Tab URL changed (normal):", tabId, changeInfo, tab);
+    await updatePriorityTab(tabId, tab);
+  }
+});
+
+// Handle SPA navigations (history.pushState / replaceState)
+// This catches URL changes without page reload
+chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
+  if (changeInfo.status === "complete") {
+    console.log("Tab URL changed (SPA):", details.tabId, details);
+    await updatePriorityTab(details.tabId, details);
+  }
+});
+
 /************************************************************
  * SERVICE FUNCTIONS
  * ----------------------------------------------------------
@@ -100,47 +132,43 @@ chrome.commands.onCommand.addListener(async (command) => {
  ************************************************************/
 
 /**
- * Get a value from chrome storage.
- * @param {string} key - The key to retrieve.
- * @returns {Promise<any>} A promise that resolves with the value.
- */
-function getStorage(key) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(key, (result) => resolve(result[key]));
-  });
-}
-
-/**
  * Clean tabs by discarding inactive tabs.
  */
 async function cleanTabs() {
   try {
-    let tabs = await chrome.tabs.query({
-      active: false,
-      audible: false,
-      discarded: false,
-      pinned: false,
-    });
-    for (tab of tabs) {
-      if (!URLMatch(tab.url)) {
+    let tabs = await getAllNonActiveTabs();
+    console.log("cleanTabs: ", tabs);
+    for (const tab of tabs) {
+      if (!tabMatch(tab)) {
         try {
-          await chrome.tabs.discard(tab.id);
+          chrome.tabs.discard(tab.id);
         } catch (err) {
-          console.warn("error discaring tabs: ", err);
+          console.error("error discaring tabs: ", err);
         }
       }
     }
   } catch (err) {
-    console.warn("error from cleanTabs operation: ", err);
+    console.error("error from cleanTabs operation: ", err);
   }
 }
 
-/**
- * Get all tabs from local storage.
- */
-async function getLocalStorage() {
-  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-  return priorityTabs;
+// Utility to refresh stored URL for a priority tab
+async function updatePriorityTab(tabId, newTab) {
+  let priorityTabs = await getPriorityTabs();
+  if (priorityTabs.length === 0) {
+    priorityTabs = null;
+    return;
+  }
+
+  const index = priorityTabs.findIndex((t) => t.id === tabId);
+  if (index !== -1) {
+    priorityTabs[index].url = newTab.url;
+    priorityTabs[index].title = newTab.title;
+    priorityTabs[index].favIconUrl = newTab.favIconUrl;
+    chrome.storage.local.set({ priorityTabs: priorityTabs });
+    console.log("Priority tab URL updated:", priorityTabs[index]);
+  }
+  priorityTabs = null;
 }
 
 /************************************************************
@@ -150,18 +178,19 @@ async function getLocalStorage() {
  ************************************************************/
 
 /**
- * Log messages only when in dev mode.
+ * Check if url is in local storage.
+ * @param {Object} tab - Tab to check
  */
-async function URLMatch(url) {
-  localStorage = await getLocalStorage();
-  return localStorage.some((tab) => url.includes(tab.url));
+async function tabMatch(url) {
+  const localStorage = await getPriorityTabs();
+  return localStorage.some((tab) => url === tab.url);
 }
 
 /**
  * Display all tabs.
  */
 async function displayAllTabs() {
-  tabs = await chrome.tabs.query({});
+  const tabs = await chrome.tabs.query({});
   console.log("all tabs: ", tabs);
 }
 
@@ -169,31 +198,60 @@ async function displayAllTabs() {
  * Display all discarded tabs.
  */
 async function displayDiscardedTabs() {
-  tabs = await chrome.tabs.query({ discarded: true });
+  const tabs = await chrome.tabs.query({ discarded: true });
   console.log("discarded tabs: ", tabs);
 }
 
 /**
- * Get all tabs from local storage.
+ * Get all inactive tabs.
  */
-async function getLocalStorage() {
-  const tabs = await getStorage("priorityTabs");
-  console.log(tabs);
+async function getAllNonActiveTabs() {
+  const tabs = await chrome.tabs.query({
+    active: false,
+    audible: false,
+    discarded: false,
+    pinned: false,
+  });
+  return tabs;
 }
 
 /**
  * Display all inactive tabs.
  */
-function displayInactiveTabs() {
-  chrome.tabs.query(
-    { active: false, audible: false, discarded: false, pinned: false },
-    (tabs) => {
-      console.log("displayInactiveTabs: ", tabs);
-      tabs.forEach((tab) => {
-        if (URLMatch(tab.url)) {
-          console.log("found inactive pinned tab: ", tab.id, " ", tab.url);
-        }
-      });
+async function displayInactiveTabs() {
+  const tabs = await getAllNonActiveTabs();
+  console.log("displayInactiveTabs: ", tabs);
+
+  for (const tab of tabs) {
+    if (await tabMatch(tab)) {
+      console.warn("found inactive pinned tab: ", tab.id, " ", tab.url);
     }
-  );
+  }
+}
+
+/**
+ * Find divergent tabs.
+ */
+async function findDivergentTabs() {
+  console.log("findDivergentTabs");
+  const tabs = await chrome.tabs.query({});
+  const localStorage = await getPriorityTabs();
+
+  let pinned = {};
+  for (const storedTab of localStorage) {
+    pinned[storedTab.id] = storedTab.url;
+  }
+
+  for (const tab of tabs) {
+    if (pinned[tab.id] && pinned[tab.id] !== tab.url) {
+      console.warn(
+        "found divergent tab: ",
+        tab.id,
+        " ",
+        tab.url,
+        " differ from ",
+        pinned[tab.id]
+      );
+    }
+  }
 }
