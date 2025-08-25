@@ -2,8 +2,11 @@
 # pre-push hook
 # Blocks console.log unless guarded by isDev
 # Ignores env file where isDevBuild() is defined
+# Tracks execution time
 
-IGNORE_FILE="scripts\shared\devTool.js"  # adjust to your file path
+START_TIME=$(date +%s%N)
+
+IGNORE_FILE="scripts/shared/devTool.js"  # adjust to your file path
 FILES=$(git ls-files '*.js' | grep -v "$IGNORE_FILE")
 
 invalid_logs=""
@@ -13,37 +16,46 @@ for file in $FILES; do
     inside_isDev_block=0
     block_depth=0
 
-    # Read file line by line
     while IFS= read -r line || [ -n "$line" ]; do
         lineno=$((lineno+1))
+        trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
 
         # Update block depth for { } tracking
-        opens=$(echo "$line" | grep -o "{" | wc -l)
-        closes=$(echo "$line" | grep -o "}" | wc -l)
+        opens=$(awk -F"{" '{print NF-1}' <<< "$line")
+        closes=$(awk -F"}" '{print NF-1}' <<< "$line")
         block_depth=$((block_depth + opens - closes))
 
         # Enter or leave isDev blocks
-        echo "$line" | grep -Eq '^\s*if\s*\(\s*isDev\s*\)\s*{?' && inside_isDev_block=1
-        if [ $block_depth -le 0 ]; then inside_isDev_block=0; fi
+        case "$trimmed" in
+            if\ \(isDev\)*\{*) inside_isDev_block=1 ;;
+        esac
+        [ $block_depth -le 0 ] && inside_isDev_block=0
 
         # Skip if line is properly guarded
-        echo "$line" | grep -Eq '^\s*if\s*\(\s*isDev\s*\)\s*console\.log' && continue
-        echo "$line" | grep -Eq '^\s*isDev\s*&&\s*console\.log' && continue
+        case "$trimmed" in
+            if\ \(isDev\)*console.log*) continue ;;
+            isDev\ \&\&*console.log*) continue ;;
+        esac
         [ $inside_isDev_block -eq 1 ] && continue
 
-        # Detect console.log (simple version, handles multi-line by checking start)
-        echo "$line" | grep -q "console\.log" || continue
+        # Detect console.log
+        case "$trimmed" in
+            *console.log*) invalid_logs="$invalid_logs\n$file:$lineno: $trimmed" ;;
+        esac
 
-        # Report line number and content
-        invalid_logs="$invalid_logs\n$file:$lineno: $line"
     done < "$file"
 done
 
+END_TIME=$(date +%s%N)
+ELAPSED_MS=$(( (END_TIME - START_TIME)/1000000 ))
+
 if [ -n "$invalid_logs" ]; then
     echo "❌ Found unguarded console.log statements:"
-    echo -e "$invalid_logs"
+    echo -e "$invalid_logs" | sed 's/^/  • /'
+    echo "⏳ Script execution time: ${ELAPSED_MS} ms"
     exit 1
 fi
 
 echo "✅ All checks passed. Push allowed."
+echo "⏳ Script execution time: ${ELAPSED_MS} ms"
 exit 0
