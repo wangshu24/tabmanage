@@ -1,6 +1,6 @@
-# Priority Tabs – Chrome Extension
+# Bye Tabs – Chrome Extension
 
-Priority Tabs is a lightweight Chrome extension that lets you **bookmark up to 10 tabs** in a priority list for quick access.  
+Bye Tabs is a lightweight Chrome extension that lets you **bookmark up to 10 tabs** in a priority list for quick access and does background clean up of inactive tabs to save memory.  
 It comes with both a **popup UI** and a **page overlay** so you can view and switch to your important tabs anytime.
 
 ---
@@ -36,6 +36,27 @@ It comes with both a **popup UI** and a **page overlay** so you can view and swi
 
 ---
 
+## 📦 Cloning & Self-Hosting
+
+You can run Priority Tabs locally in developer mode:
+
+1. **Clone the repo:**
+   ```sh
+   git clone https://github.com/your-username/priority-tabs.git
+   cd priority-tabs
+   ```
+2. **Set up Git hooks (recommended):**
+   ```sh
+   setup-hooks.sh
+   ```
+3. **Load unpacked extension:**
+   - Open Chrome and go to `chrome://extensions`.
+   - Enable **Developer mode**.
+   - Click **Load unpacked** and select the `priority-tabs` directory.
+4. Done!
+
+---
+
 ## ⚡ Roadmap / Ideas
 - [ ] Make overlay tab entries clickable → instantly switch to that tab.
 - [ ] Options page for customization (e.g., max tab count, styling).
@@ -46,4 +67,3 @@ It comes with both a **popup UI** and a **page overlay** so you can view and swi
 ## 📝 License
 MIT License © 2025  
 Feel free to fork and extend!
-
