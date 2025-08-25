@@ -10,10 +10,10 @@ document.getElementById("add").addEventListener("click", async () => {
       id: tab.id,
       title: tab.title,
       url: tab.url,
-      // favIcon: tab.favIconUrl
+      favIcon: tab.favIconUrl,
     };
 
-    const isTabNew = tabs.some((t) => t.url === newTab.url);
+    const isTabNew = tabs.some((t) => t.id === newTab.id);
 
     if (isTabNew) {
       // Tab already exists → blink its entry
@@ -28,7 +28,7 @@ document.getElementById("add").addEventListener("click", async () => {
       return;
     }
 
-    // Add new tab
+    // Add new tab to local storage
     if (tabs.length >= 10) tabs.shift();
     tabs.push(newTab);
     chrome.storage.local.set({ priorityTabs: tabs });

@@ -112,7 +112,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete") {
     console.log("Tab URL changed (normal):", tabId, changeInfo, tab);
-    await updatePriorityTabURL(tabId, tab);
+    await updatePriorityTab(tabId, tab);
   }
 });
 
@@ -121,7 +121,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
   if (changeInfo.status === "complete") {
     console.log("Tab URL changed (SPA):", details.tabId, details);
-    await updatePriorityTabURL(details.tabId, details);
+    await updatePriorityTab(details.tabId, details);
   }
 });
 
@@ -153,7 +153,7 @@ async function cleanTabs() {
 }
 
 // Utility to refresh stored URL for a priority tab
-async function updatePriorityTabURL(tabId, newTab) {
+async function updatePriorityTab(tabId, newTab) {
   let priorityTabs = await getPriorityTabs();
   if (priorityTabs.length === 0) {
     priorityTabs = null;
