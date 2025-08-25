@@ -1,4 +1,6 @@
-// Add current tab to storage
+import { renderPriorityTabs } from "./shared/priorityTab.js";
+
+// Add current tab to storage when clicked
 document.getElementById("add").addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -45,20 +47,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.storage.local.get("priorityTabs").then((result) => {
   renderPriorityTabs(result.priorityTabs);
 });
-
-// Helper: render tab list
-function renderPriorityTabs(tabs) {
-  const container = document.getElementById("priority-tabs");
-  container.innerHTML = "";
-  tabs.forEach((tab, i) => {
-    const div = document.createElement("div");
-    div.className = "tab-item";
-    div.dataset.url = tab.url; // store url for lookup
-    div.innerHTML = `<strong>${i + 1}. ${tab.title}</strong>
-                     <span>${tab.url}</span>`;
-    container.appendChild(div);
-  });
-}
 
 document.getElementById("refresh").addEventListener("click", () => {
   chrome.runtime.sendMessage({ action: "displayDiscardedTabs" });

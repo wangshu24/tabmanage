@@ -109,19 +109,19 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
 // Handle normal navigations (full reload, non-SPA)
 // Fires when a tab updates (like URL change, title, status, etc.)
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (changeInfo.url) {
-    console.log("Tab URL changed (normal):", tabId, changeInfo.url);
-    await updatePriorityTabURL(tabId, changeInfo.url);
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete") {
+    console.log("Tab URL changed (normal):", tabId, changeInfo, tab);
+    await updatePriorityTabURL(tabId, tab);
   }
 });
 
 // Handle SPA navigations (history.pushState / replaceState)
 // This catches URL changes without page reload
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
-  if (details.url) {
-    console.log("Tab URL changed (SPA):", details.tabId, details.url);
-    await updatePriorityTabURL(details.tabId, details.url);
+  if (changeInfo.status === "complete") {
+    console.log("Tab URL changed (SPA):", details.tabId, details);
+    await updatePriorityTabURL(details.tabId, details);
   }
 });
 
@@ -138,8 +138,7 @@ async function cleanTabs() {
   try {
     let tabs = await getAllNonActiveTabs();
     console.log("cleanTabs: ", tabs);
-
-    for (tab of tabs) {
+    for (const tab of tabs) {
       if (!tabMatch(tab)) {
         try {
           chrome.tabs.discard(tab.id);
@@ -151,11 +150,10 @@ async function cleanTabs() {
   } catch (err) {
     console.error("error from cleanTabs operation: ", err);
   }
-  tabs = null;
 }
 
 // Utility to refresh stored URL for a priority tab
-async function updatePriorityTabURL(tabId, newURL) {
+async function updatePriorityTabURL(tabId, newTab) {
   let priorityTabs = await getPriorityTabs();
   if (priorityTabs.length === 0) {
     priorityTabs = null;
@@ -164,10 +162,13 @@ async function updatePriorityTabURL(tabId, newURL) {
 
   const index = priorityTabs.findIndex((t) => t.id === tabId);
   if (index !== -1) {
-    priorityTabs[index].url = newURL;
-    chrome.storage.local.set({ priorityTabs });
+    priorityTabs[index].url = newTab.url;
+    priorityTabs[index].title = newTab.title;
+    priorityTabs[index].favIconUrl = newTab.favIconUrl;
+    chrome.storage.local.set({ priorityTabs: priorityTabs });
     console.log("Priority tab URL updated:", priorityTabs[index]);
   }
+  priorityTabs = null;
 }
 
 /************************************************************

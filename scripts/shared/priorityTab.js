@@ -62,3 +62,22 @@ export function listenPriorityTabsChanges(callback) {
     callback(await getPriorityTabs());
   });
 }
+
+/**
+ * Render priority tabs into a container:
+ *   1. priorityTabs storage changes
+ *   2. a tab is closed
+ * @param {Array} Array of {id, title} objects - Render function
+ */
+export function renderPriorityTabs(tabs) {
+  const container = document.getElementById("priority-tabs");
+  container.innerHTML = "";
+  tabs.forEach((tab, i) => {
+    const div = document.createElement("div");
+    div.className = "tab-item";
+    div.dataset.url = tab.url; // store url for lookup
+    div.innerHTML = `<strong>${i + 1}. ${tab.title}</strong>
+                     <span>${tab.url}</span>`;
+    container.appendChild(div);
+  });
+}
