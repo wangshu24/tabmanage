@@ -1,59 +1,47 @@
 #!/bin/sh
-# Fast pre-push hook with full console.log checks
+# pre-push hook
+# Blocks console.log unless guarded by isDev
+# Ignores env file where isDevBuild() is defined
+# Tracks execution time
+
 START_TIME=$(date +%s%N)
 
-IGNORE_FILE="scripts/shared/devTool.js"
-
-# Only staged JS files
-FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.js$' | grep -v "$IGNORE_FILE")
+IGNORE_FILE="scripts/shared/devTool.js"  # adjust to your file path
+FILES=$(git ls-files '*.js' | grep -v "$IGNORE_FILE")
 
 invalid_logs=""
 
 for file in $FILES; do
     lineno=0
-    block_depth=0
     inside_isDev_block=0
-    inside_console_log=0
-    console_buffer=""
-    console_start_line=0
+    block_depth=0
 
     while IFS= read -r line || [ -n "$line" ]; do
         lineno=$((lineno+1))
-        trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading spaces
+        trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
 
-        # --- Track block depth without external commands ---
-        opens=$(echo "${line}" | awk -F"{" '{print NF-1}')
-        closes=$(echo "${line}" | awk -F"}" '{print NF-1}')
+        # Update block depth for { } tracking
+        opens=$(awk -F"{" '{print NF-1}' <<< "$line")
+        closes=$(awk -F"}" '{print NF-1}' <<< "$line")
         block_depth=$((block_depth + opens - closes))
+
+        # Enter or leave isDev blocks
+        case "$trimmed" in
+            if\ \(isDev\)*\{*) inside_isDev_block=1 ;;
+        esac
         [ $block_depth -le 0 ] && inside_isDev_block=0
 
-        # Enter isDev block
-        [[ "$trimmed" =~ ^if[[:space:]]*\(\s*isDev\s*\).* ]] && inside_isDev_block=1
-
-        # --- Multi-line console.log detection ---
-        if [ $inside_console_log -eq 1 ]; then
-            console_buffer="$console_buffer $trimmed"
-            [[ "$trimmed" == *\; ]] && {
-                [[ "$console_buffer" =~ ^isDev.* ]] || [ $inside_isDev_block -eq 0 ] && invalid_logs="$invalid_logs\n$file:$console_start_line: ${console_buffer}"
-                inside_console_log=0
-                console_buffer=""
-            }
-            continue
-        fi
-
-        # --- Detect console.log start ---
-        [[ "$trimmed" == *console.log* ]] || continue
-        [[ "$trimmed" =~ ^if[[:space:]]*\(\s*isDev\s*\).*console.log.* ]] && continue
-        [[ "$trimmed" =~ ^isDev[[:space:]]*&&.*console.log.* ]] && continue
+        # Skip if line is properly guarded
+        case "$trimmed" in
+            if\ \(isDev\)*console.log*) continue ;;
+            isDev\ \&\&*console.log*) continue ;;
+        esac
         [ $inside_isDev_block -eq 1 ] && continue
 
-        if [[ "$trimmed" == *\; ]]; then
-            invalid_logs="$invalid_logs\n$file:$lineno: $trimmed"
-        else
-            inside_console_log=1
-            console_buffer="$trimmed"
-            console_start_line=$lineno
-        fi
+        # Detect console.log
+        case "$trimmed" in
+            *console.log*) invalid_logs="$invalid_logs\n$file:$lineno: $trimmed" ;;
+        esac
 
     done < "$file"
 done
