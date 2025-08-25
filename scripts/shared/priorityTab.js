@@ -111,7 +111,7 @@ export function renderPriorityTabs(tabs) {
     const div = document.createElement("div");
     div.className = "tab-item";
     div.dataset.url = tab.url; // store url for lookup
-    console.log("favicon: ", tab);
+    console.log("favicon hook check: ", tab);
     div.innerHTML = `
       <span style="
        display:inline-block;
