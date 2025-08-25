@@ -82,7 +82,8 @@ export async function updatePriorityTab(tabId, newTab) {
     if (newTab.title) priorityTabs[index].title = newTab.title;
     if (newTab.favIconUrl) priorityTabs[index].favIconUrl = newTab.favIconUrl;
     chrome.storage.local.set({ priorityTabs: priorityTabs });
-    console.log("Priority tab URL updated check:", priorityTabs[index]);
+    isDev &&
+      console.log("Priority tab URL updated check:", priorityTabs[index]);
   }
 }
 
@@ -111,7 +112,7 @@ export function renderPriorityTabs(tabs) {
     const div = document.createElement("div");
     div.className = "tab-item";
     div.dataset.url = tab.url; // store url for lookup
-    console.log("favicon hook check : ", tab);
+    isDev && console.log("favicon hook check : ", tab);
     div.innerHTML = `
       <span style="
        display:inline-block;
