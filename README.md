@@ -47,6 +47,8 @@ You can run Priority Tabs locally in developer mode:
    ```
 2. **Set up Git hooks (recommended):**
    ```sh
+   # Ensure the script is executable
+   chmod +x setup-hooks.sh
    setup-hooks.sh
    ```
 3. **Load unpacked extension:**

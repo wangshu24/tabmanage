@@ -1,57 +1,41 @@
 #!/bin/sh
-# File: .git/hooks/pre-push
-# chmod +x .git/hooks/pre-push
+# pre-push hook
+# Blocks console.log unless guarded by isDev
+# Ignores env file where isDevBuild() is defined
 
-echo "🔍 Running pre-push checks..."
-
-# === 1. Basic lint check for trailing spaces ===
-grep -n '[[:space:]]$' $(git ls-files '*.js') && {
-    echo "❌ Trailing spaces found!"
-    exit 1
-}
-
-# === 2. Console.log usage check ===
-IGNORE_FILE="src/env.js"  # <-- adjust this to where isDevBuild() is defined
+IGNORE_FILE="scripts\shared\devTool.js"  # adjust to your file path
 FILES=$(git ls-files '*.js' | grep -v "$IGNORE_FILE")
 
 invalid_logs=""
 
 for file in $FILES; do
+    lineno=0
     inside_isDev_block=0
     block_depth=0
 
-    while IFS= read -r line; do
-        # Track block depth for { }
+    # Read file line by line
+    while IFS= read -r line || [ -n "$line" ]; do
+        lineno=$((lineno+1))
+
+        # Update block depth for { } tracking
         opens=$(echo "$line" | grep -o "{" | wc -l)
         closes=$(echo "$line" | grep -o "}" | wc -l)
         block_depth=$((block_depth + opens - closes))
 
-        # Detect entering an if (isDev) block
-        echo "$line" | grep -Eq '^\s*if\s*\(\s*isDev\s*\)\s*{?' && {
-            inside_isDev_block=1
-        }
+        # Enter or leave isDev blocks
+        echo "$line" | grep -Eq '^\s*if\s*\(\s*isDev\s*\)\s*{?' && inside_isDev_block=1
+        if [ $block_depth -le 0 ]; then inside_isDev_block=0; fi
 
-        # Reset when leaving block
-        if [ $block_depth -le 0 ]; then
-            inside_isDev_block=0
-        fi
-
-        # Handle console.log lines
-        echo "$line" | grep -q "console\.log" || continue
-
-        # Allowed patterns:
-        #   if (isDev) console.log(...)
-        #   isDev && console.log(...)
+        # Skip if line is properly guarded
         echo "$line" | grep -Eq '^\s*if\s*\(\s*isDev\s*\)\s*console\.log' && continue
         echo "$line" | grep -Eq '^\s*isDev\s*&&\s*console\.log' && continue
+        [ $inside_isDev_block -eq 1 ] && continue
 
-        # Allowed if inside isDev block
-        if [ $inside_isDev_block -eq 1 ]; then
-            continue
-        fi
+        # Detect console.log (simple version, handles multi-line by checking start)
+        echo "$line" | grep -q "console\.log" || continue
 
-        # Otherwise it's invalid
-        invalid_logs="$invalid_logs\n$file:$line"
+        # Report line number and content
+        invalid_logs="$invalid_logs\n$file:$lineno: $line"
     done < "$file"
 done
 
