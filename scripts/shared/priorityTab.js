@@ -111,8 +111,31 @@ export function renderPriorityTabs(tabs) {
     const div = document.createElement("div");
     div.className = "tab-item";
     div.dataset.url = tab.url; // store url for lookup
-    div.innerHTML = `<strong>${i + 1}. ${tab.title}</strong>
-                     <span>${tab.url}</span>`;
+    console.log("favicon: ", tab);
+    div.innerHTML = `
+      <span style="
+       display:inline-block;
+       min-width:18px;
+       padding:2px 6px;
+       margin-right:6px;
+       background:#e0e0e0;
+       color:#333;
+       border-radius:4px;
+       font-size:12px;
+       font-weight:bold;
+       text-align:center;
+       font-family:monospace;">
+      ${i + 1}
+      </span>
+      <img src="${tab.favIcon || "icons/default.png"}"
+       alt="favicon" 
+       style="width:16px; height:16px; margin-right:6px; vertical-align:middle;" />
+      <strong>${tab.title}</strong>
+      <span style="margin-left:6px; color:#666; font-size:12px;">${
+        tab.url
+      }</span>
+`;
+
     container.appendChild(div);
   });
 }
