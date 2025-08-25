@@ -1,14 +1,14 @@
 #!/bin/sh
-# pre-push hook (optimized, multi-line aware)
-# Blocks console.log unless guarded by isDev
-# Ignores env file where isDevBuild() is defined
-# Tracks execution time and prints human-readable logs
+# pre-push hook (final robust version)
+# Blocks unguarded console.log statements
+# Ignores env file, respects isDev guards, supports multi-line logs
+# Measures execution time
 
-START_TIME=$(date +%s%N)   # nanoseconds
+START_TIME=$(date +%s%N)
 
 IGNORE_FILE="src/env.js"
 
-# Only staged JS files
+# Only staged JS files (added, copied, modified)
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.js$' | grep -v "$IGNORE_FILE")
 
 invalid_logs=""
@@ -19,61 +19,59 @@ for file in $FILES; do
     block_depth=0
     inside_console_log=0
     console_buffer=""
+    console_start_line=0
 
     while IFS= read -r line || [ -n "$line" ]; do
         lineno=$((lineno+1))
         trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading spaces
 
-        # Track block depth
+        # Track block depth for { } to detect isDev blocks
         opens=$(awk -F"{" '{print NF-1}' <<< "$line")
         closes=$(awk -F"}" '{print NF-1}' <<< "$line")
         block_depth=$((block_depth + opens - closes))
 
-        # Enter/exit isDev blocks
+        # Enter/exit isDev block
         case "$trimmed" in
             if\ \(isDev\)*\{*) inside_isDev_block=1 ;;
         esac
         [ $block_depth -le 0 ] && inside_isDev_block=0
 
-        # Detect start of console.log
-        if [ $inside_console_log -eq 0 ]; then
-            case "$trimmed" in
-                *console.log*) 
-                    # Check if this line ends with ';' -> single-line log
-                    if [[ "$trimmed" == *\; ]]; then
-                        # Single-line console.log
-                        # Skip if properly guarded
-                        [[ "$trimmed" == "if (isDev)"* ]] && continue
-                        [[ "$trimmed" == "isDev &&"* ]] && continue
-                        [ $inside_isDev_block -eq 1 ] && continue
-                        invalid_logs="$invalid_logs\n$file:$lineno: ${trimmed}"
-                        continue
-                    else
-                        # Multi-line console.log start
-                        inside_console_log=1
-                        console_start_line=$lineno
-                        console_buffer="$trimmed"
-                        continue
-                    fi
-                    ;;
-            esac
-        else
-            # We are inside multi-line console.log
+        # --- Multi-line console.log handling ---
+        if [ $inside_console_log -eq 1 ]; then
             console_buffer="$console_buffer $trimmed"
-            # End of multi-line log
+            # End of multi-line log detected by semicolon
             if [[ "$trimmed" == *\; ]]; then
-                # Skip if inside isDev
+                # Skip if inside isDev or starts with isDev guard
+                [[ "$console_buffer" == "isDev &&"* ]] && inside_console_log=0 && console_buffer="" && continue
+                [[ "$console_buffer" == "if (isDev)"* ]] && inside_console_log=0 && console_buffer="" && continue
                 [ $inside_isDev_block -eq 1 ] && inside_console_log=0 && console_buffer="" && continue
-                if [[ "$console_buffer" == "isDev &&"* ]] || [[ "$console_buffer" == "if (isDev)"* ]]; then
-                    inside_console_log=0
-                    console_buffer=""
-                    continue
-                fi
+
                 invalid_logs="$invalid_logs\n$file:$console_start_line: ${console_buffer}"
                 inside_console_log=0
                 console_buffer=""
             fi
+            continue
         fi
+
+        # --- Detect console.log start ---
+        case "$trimmed" in
+            *console.log*)
+                # Skip if properly guarded
+                [[ "$trimmed" == "if (isDev)"* ]] && continue
+                [[ "$trimmed" == "isDev &&"* ]] && continue
+                [ $inside_isDev_block -eq 1 ] && continue
+
+                # Single-line console.log ends with ;
+                if [[ "$trimmed" == *\; ]]; then
+                    invalid_logs="$invalid_logs\n$file:$lineno: ${trimmed}"
+                else
+                    # Start multi-line console.log
+                    inside_console_log=1
+                    console_buffer="$trimmed"
+                    console_start_line=$lineno
+                fi
+                ;;
+        esac
 
     done < "$file"
 done
@@ -81,12 +79,11 @@ done
 END_TIME=$(date +%s%N)
 ELAPSED_MS=$(( (END_TIME - START_TIME)/1000000 ))
 
-# Print results
+# --- Output ---
 if [ -n "$invalid_logs" ]; then
     echo "❌ Found unguarded console.log statements:"
-    # Print each log entry prefixed with a bullet for readability
     echo -e "$invalid_logs" | sed 's/^/  • /'
-    echo "⏱ Script execution time: ${ELAPSED_MS} ms"
+    echo "⏳ Script execution time: ${ELAPSED_MS} ms"
     exit 1
 fi
 
