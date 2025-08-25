@@ -124,7 +124,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 // This catches URL changes without page reload
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
   isDev && console.log("Tab URL changed (SPA):", details);
-  console.log("Tab URL changed (SPA):", details.tabId, details);
   await updatePriorityTab(details.tabId, details);
 });
 
