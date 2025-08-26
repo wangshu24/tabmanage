@@ -1,3 +1,6 @@
+import { isDevBuild } from "./devTool.js";
+const isDev = isDevBuild();
+
 // shared/priorityTabs.js
 // ==================================================
 // Shared utility module for managing priority tabs.
