@@ -1,4 +1,5 @@
-import { getPriorityTabs } from "./shared/priorityTab.js";
+import { getPriorityTabs, updatePriorityTab } from "./shared/priorityTab.js";
+import { isDevBuild } from "./shared/devTool.js";
 
 /************************************************************
  * CHROME SETUP
@@ -6,9 +7,11 @@ import { getPriorityTabs } from "./shared/priorityTab.js";
  * Handles integration with Chrome APIs (tabs, storage, etc.)
  ************************************************************/
 
+const isDev = isDevBuild();
+
 // Initialize extension configuration when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
-  console.info("Extension installed");
+  isDev && console.info("Extension installed");
 
   chrome.alarms.create("periodicCheck", {
     delayInMinutes: 1, //first run after 1min
@@ -30,7 +33,7 @@ chrome.runtime.onStartup.addListener(async () => {
       try {
         await chrome.tabs.discard(tab.id);
       } catch (err) {
-        console.warn(`Could not discard tab ${tab.id}:`, err);
+        isDev && console.warn(`Could not discard tab ${tab.id}:`, err);
       }
     }
   }
@@ -62,7 +65,8 @@ chrome.runtime.onMessage.addListener(async (message) => {
         try {
           await chrome.tabs.update(tabInfo.id, { active: true });
         } catch (e) {
-          console.warn("Tab may be closed, removing from priority list");
+          isDev &&
+            console.warn("Tab may be closed, removing from priority list");
         }
       }
       break;
@@ -70,7 +74,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
       findDivergentTabs();
       break;
     default:
-      console.log("default message handler: ", message);
+      isDev && console.log("default message handler: ", message);
   }
 });
 
@@ -101,7 +105,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Handle re-indexing priority tabs on inactive tabs removal
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  console.log("tab removed: ", tabId);
+  isDev && console.log("tab removed: ", tabId);
   let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
   priorityTabs = (priorityTabs || []).filter((t) => t.id !== tabId);
   await chrome.storage.local.set({ priorityTabs });
@@ -111,7 +115,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 // Fires when a tab updates (like URL change, title, status, etc.)
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete") {
-    console.log("Tab URL changed (normal):", tabId, changeInfo, tab);
+    isDev && console.log("Tab URL changed (normal):", tabId, changeInfo, tab);
     await updatePriorityTab(tabId, tab);
   }
 });
@@ -119,10 +123,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 // Handle SPA navigations (history.pushState / replaceState)
 // This catches URL changes without page reload
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
-  if (changeInfo.status === "complete") {
-    console.log("Tab URL changed (SPA):", details.tabId, details);
-    await updatePriorityTab(details.tabId, details);
-  }
+  isDev && console.log("Tab URL changed (SPA):", details);
+  await updatePriorityTab(details.tabId, details);
 });
 
 /************************************************************
@@ -137,38 +139,19 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 async function cleanTabs() {
   try {
     let tabs = await getAllNonActiveTabs();
-    console.log("cleanTabs: ", tabs);
+    isDev && console.log("cleaning tabs: ", tabs);
     for (const tab of tabs) {
       if (!tabMatch(tab)) {
         try {
           chrome.tabs.discard(tab.id);
         } catch (err) {
-          console.error("error discaring tabs: ", err);
+          isDev && console.error("error discaring tabs: ", err);
         }
       }
     }
   } catch (err) {
-    console.error("error from cleanTabs operation: ", err);
+    isDev && console.error("error from cleanTabs operation: ", err);
   }
-}
-
-// Utility to refresh stored URL for a priority tab
-async function updatePriorityTab(tabId, newTab) {
-  let priorityTabs = await getPriorityTabs();
-  if (priorityTabs.length === 0) {
-    priorityTabs = null;
-    return;
-  }
-
-  const index = priorityTabs.findIndex((t) => t.id === tabId);
-  if (index !== -1) {
-    priorityTabs[index].url = newTab.url;
-    priorityTabs[index].title = newTab.title;
-    priorityTabs[index].favIconUrl = newTab.favIconUrl;
-    chrome.storage.local.set({ priorityTabs: priorityTabs });
-    console.log("Priority tab URL updated:", priorityTabs[index]);
-  }
-  priorityTabs = null;
 }
 
 /************************************************************
@@ -191,7 +174,7 @@ async function tabMatch(url) {
  */
 async function displayAllTabs() {
   const tabs = await chrome.tabs.query({});
-  console.log("all tabs: ", tabs);
+  isDev && console.log("all tabs: ", tabs);
 }
 
 /**
@@ -199,7 +182,7 @@ async function displayAllTabs() {
  */
 async function displayDiscardedTabs() {
   const tabs = await chrome.tabs.query({ discarded: true });
-  console.log("discarded tabs: ", tabs);
+  isDev && console.log("discarded tabs: ", tabs);
 }
 
 /**
@@ -220,11 +203,12 @@ async function getAllNonActiveTabs() {
  */
 async function displayInactiveTabs() {
   const tabs = await getAllNonActiveTabs();
-  console.log("displayInactiveTabs: ", tabs);
+  isDev && console.log("displayInactiveTabs: ", tabs);
 
   for (const tab of tabs) {
     if (await tabMatch(tab)) {
-      console.warn("found inactive pinned tab: ", tab.id, " ", tab.url);
+      isDev &&
+        console.info("found inactive pinned tab: ", tab.id, " ", tab.url);
     }
   }
 }
@@ -233,7 +217,7 @@ async function displayInactiveTabs() {
  * Find divergent tabs.
  */
 async function findDivergentTabs() {
-  console.log("findDivergentTabs");
+  isDev && console.info("findDivergentTabs");
   const tabs = await chrome.tabs.query({});
   const localStorage = await getPriorityTabs();
 
@@ -244,14 +228,15 @@ async function findDivergentTabs() {
 
   for (const tab of tabs) {
     if (pinned[tab.id] && pinned[tab.id] !== tab.url) {
-      console.warn(
-        "found divergent tab: ",
-        tab.id,
-        " ",
-        tab.url,
-        " differ from ",
-        pinned[tab.id]
-      );
+      isDev &&
+        console.warn(
+          "found divergent tab: ",
+          tab.id,
+          " ",
+          tab.url,
+          " differ from ",
+          pinned[tab.id]
+        );
     }
   }
 }

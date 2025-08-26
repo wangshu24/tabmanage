@@ -1,4 +1,17 @@
 import { renderPriorityTabs } from "./shared/priorityTab.js";
+import { isDevBuild, setupDevTools } from "./shared/devTool.js";
+
+let isDev = false;
+if (isDevBuild()) {
+  // Dynamically import dev-only code
+  setupDevTools();
+  isDev = true;
+} else {
+  // Hide dev-only UI
+  const refreshBtn = document.getElementById("refresh");
+  if (refreshBtn) refreshBtn.style.display = "none";
+  isDev = false;
+}
 
 // Add current tab to storage when clicked
 document.getElementById("add").addEventListener("click", async () => {
@@ -37,7 +50,7 @@ document.getElementById("add").addEventListener("click", async () => {
 
 // Listen for changes and update UI live
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  console.log("reading changes: ", changes);
+  isDev && console.log("reading changes: ", changes);
   if (areaName === "local" && changes.priorityTabs) {
     renderPriorityTabs(changes.priorityTabs.newValue);
   }
@@ -46,12 +59,4 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // Render existing storage on popup open
 chrome.storage.local.get("priorityTabs").then((result) => {
   renderPriorityTabs(result.priorityTabs);
-});
-
-document.getElementById("refresh").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ action: "displayDiscardedTabs" });
-  chrome.runtime.sendMessage({ action: "getPriorityTabs" });
-  chrome.runtime.sendMessage({ action: "displayAllTabs" });
-  chrome.runtime.sendMessage({ action: "displayInactiveTabs" });
-  chrome.runtime.sendMessage({ action: "findDivergentTabs" });
 });
