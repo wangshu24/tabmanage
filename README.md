@@ -1,12 +1,14 @@
-# Bye Tabs – Chrome Extension
+# ByeTabs – Chrome Extension
 
-Bye Tabs is a lightweight Chrome extension that lets you **bookmark up to 10 tabs** in a priority list for quick access and does background clean up of inactive tabs to save memory.  
+ByeTabs is a lightweight Chrome extension that lets you **bookmark up to 10 tabs** in a priority list for quick access and does background clean up of inactive tabs to save memory.  
 It comes with both a **popup UI** and a **page overlay** so you can view and switch to your important tabs anytime.
 
 ---
 
 ## ✨ Features
+### Free Version
 - Add the current tab to a priority list (max 10 items).
+   - When adding a new tab, the oldest tab is removed from the list.
 - Popup view with clean, card-style display of tabs.
 - Overlay injected directly into the page showing the list.
 - Duplicate protection: if you try to add the same tab again, the existing entry **blinks red** instead of being duplicated.
@@ -27,8 +29,8 @@ It comes with both a **popup UI** and a **page overlay** so you can view and swi
 
 ## 📸 UI Overview
 - **Popup**
-  - Minimal card-style list of priority tabs with spacing.
-  - Buttons to add current tab and refresh list.
+  - Minimal card-style list of priority tabs.
+  - Buttons to add current tab, remove a tab, and remove all.
 - **Overlay**
   - Small floating box in the top-right corner of the page.
   - Lists your priority tabs.
@@ -38,7 +40,7 @@ It comes with both a **popup UI** and a **page overlay** so you can view and swi
 
 ## 📦 Cloning & Self-Hosting
 
-You can run Priority Tabs locally in developer mode:
+You can run ByeTabs locally in developer mode:
 
 1. **Clone the repo:**
    ```sh

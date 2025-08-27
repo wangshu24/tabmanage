@@ -48,6 +48,10 @@ document.getElementById("add").addEventListener("click", async () => {
   });
 });
 
+document.getElementById("flush").addEventListener("click", async () => {
+  chrome.storage.local.set({ priorityTabs: [] });
+});
+
 // Listen for changes and update UI live
 chrome.storage.onChanged.addListener((changes, areaName) => {
   isDev && console.log("reading changes: ", changes);
