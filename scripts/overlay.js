@@ -1,5 +1,3 @@
-import { getPriorityTabs } from "./shared/priorityTab.js";
-
 (async function () {
   if (document.getElementById("priority-overlay")) return;
 
@@ -13,11 +11,11 @@ import { getPriorityTabs } from "./shared/priorityTab.js";
     cursor: pointer;
   `;
 
-  const list = await getPriorityTabs();
+  const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
 
   overlay.innerHTML =
     "<b>Priority Tabs:</b><br>" +
-    list.map((t, i) => `${i + 1}. ${t.title}`).join("<br>") +
+    priorityTabs.map((t, i) => `${i + 1}. ${t.title}`).join("<br>") +
     "<br><small>Press 1 - 0 to switch</small>" +
     "<br><small>(Click to close · Press 1-0 to switch)</small>";
 
@@ -26,14 +24,13 @@ import { getPriorityTabs } from "./shared/priorityTab.js";
   function removeOverlay() {
     document.removeEventListener("keydown", keyHandler);
     overlay.remove();
-    document = null;
   }
 
   const keyHandler = (e) => {
     if (/^[0-9]$/.test(e.key)) {
       let idx = parseInt(e.key, 10) - 1;
       if (e.key === "0") idx = 9; // map 0 → 10th tab
-      if (list[idx]) {
+      if (priorityTabs[idx]) {
         chrome.runtime.sendMessage({ action: "switchToTab", index: idx });
         removeOverlay();
       }

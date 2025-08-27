@@ -1,4 +1,8 @@
-import { getPriorityTabs, updatePriorityTab } from "./shared/priorityTab.js";
+import {
+  getPriorityTabs,
+  updatePriorityTab,
+  removePriorityTab,
+} from "./shared/priorityTab.js";
 import { isDevBuild } from "./shared/devTool.js";
 
 /************************************************************
@@ -27,14 +31,26 @@ chrome.runtime.onInstalled.addListener(() => {
 // Can be extended to only keeping prioritized
 chrome.runtime.onStartup.addListener(async () => {
   const tabs = await chrome.tabs.query({});
+  let tabObj = {};
+  //Remove all none active, non-pinned tabs
   for (const tab of tabs) {
     // Keep only active tab in each window loaded
+    tabObj[tab.id] = tab.url;
     if (!tab.active && !tab.discarded) {
       try {
         await chrome.tabs.discard(tab.id);
       } catch (err) {
         isDev && console.warn(`Could not discard tab ${tab.id}:`, err);
       }
+    }
+  }
+
+  //Check for pinned tabs, to see if they are still available in window
+  // TODO: extended to setting, cross-windows or distinct windows
+  let priorityTabs = await getPriorityTabs();
+  for (const tab of priorityTabs) {
+    if (!tabObj[tab.id]) {
+      await removePriorityTab(tab.id);
     }
   }
 });

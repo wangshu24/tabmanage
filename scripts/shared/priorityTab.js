@@ -1,3 +1,6 @@
+import { isDevBuild } from "./devTool.js";
+const isDev = isDevBuild();
+
 // shared/priorityTabs.js
 // ==================================================
 // Shared utility module for managing priority tabs.
@@ -111,32 +114,18 @@ export function renderPriorityTabs(tabs) {
   tabs.forEach((tab, i) => {
     const div = document.createElement("div");
     div.className = "tab-item";
+    div.dataset.id = tab.id;
     div.dataset.url = tab.url; // store url for lookup
     isDev && console.log("favicon hook check : ", tab);
     div.innerHTML = `
-      <span style="
-       display:inline-block;
-       min-width:18px;
-       padding:2px 6px;
-       margin-right:6px;
-       background:#e0e0e0;
-       color:#333;
-       border-radius:4px;
-       font-size:12px;
-       font-weight:bold;
-       text-align:center;
-       font-family:monospace;">
-      ${i + 1}
-      </span>
-      <img src="${tab.favIcon || "icons/default.png"}"
-       alt="favicon" 
-       style="width:16px; height:16px; margin-right:6px; vertical-align:middle;" />
-      <strong>${tab.title}</strong>
-      <span style="margin-left:6px; color:#666; font-size:12px;">${
-        tab.url
-      }</span>
-`;
+      <span class="tab-key">${i + 1}</span>
+      <strong class="tab-title" title="${tab.url}">${tab.title}</strong>
+      <button class="delete-btn" data-id="${tab.id}">✕</button>
+    `;
 
+    div.querySelector(".delete-btn").addEventListener("click", async () => {
+      await removePriorityTab(tab.id);
+    });
     container.appendChild(div);
   });
 }
