@@ -1,6 +1,6 @@
-# ByeTabs – Chrome Extension
+# KeepingTab – Chrome Extension
 
-ByeTabs is a lightweight Chrome extension that lets you **bookmark up to 10 tabs** in a priority list for quick access and does background clean up of inactive tabs to save memory.  
+Are you, and your computer are struggling to handle thousands of tabs? Then meet KeepingTab. A lightweight Chrome extension that lets you **bookmark up to 10 tabs** in a priority list for quick access and does background clean up of inactive tabs to save memory.  
 It comes with both a **popup UI** and a **page overlay** so you can view and switch to your important tabs anytime.
 
 ---
