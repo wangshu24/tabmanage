@@ -18,7 +18,7 @@ chrome.runtime.onInstalled.addListener(() => {
   isDev && console.info("Extension installed");
 
   chrome.alarms.create("periodicCheck", {
-    delayInMinutes: 1, //first run after 1min
+    delayInMinutes: 10, //first run after 1min
     periodInMinutes: 10, //periodic check every 10min
   });
 
