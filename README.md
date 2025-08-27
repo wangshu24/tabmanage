@@ -6,7 +6,9 @@ It comes with both a **popup UI** and a **page overlay** so you can view and swi
 ---
 
 ## ✨ Features
-- Add the current tab to a priority list (max 3 items).
+### Free Version
+- Add the current tab to a priority list (max 10 items).
+   - When adding a new tab, the oldest tab is removed from the list.
 - Popup view with clean, card-style display of tabs.
 - Overlay injected directly into the page showing the list.
 - Duplicate protection: if you try to add the same tab again, the existing entry **blinks red** instead of being duplicated.
