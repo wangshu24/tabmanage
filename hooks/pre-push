@@ -4,11 +4,20 @@
 # Ignores env file where isDevBuild() is defined
 # Supports multi-line console.log
 # Tracks execution time
+# Optimized: only checks staged files being pushed
 
 START_TIME=$(date +%s%N)
 
 IGNORE_FILE="scripts/shared/devTool.js"
-FILES=$(git ls-files '*.js' | grep -v "$IGNORE_FILE")
+
+# Only check staged JS files
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.js$' | grep -v "$IGNORE_FILE")
+
+# If no staged JS files, skip quickly
+[ -z "$FILES" ] && {
+  echo "✅ No staged JS files to check. Push allowed."
+  exit 0
+}
 
 invalid_logs=""
 
@@ -74,7 +83,7 @@ END_TIME=$(date +%s%N)
 ELAPSED_MS=$(( (END_TIME - START_TIME)/1000000 ))
 
 if [ -n "$invalid_logs" ]; then
-    echo "❌ Found unguarded console.log statements:"
+    echo "❌ Found unguarded console.log statements in staged files:"
     echo -e "$invalid_logs" | sed 's/^/  • /'
     echo "⏳ Script execution time: ${ELAPSED_MS} ms"
     exit 1
