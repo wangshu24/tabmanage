@@ -118,46 +118,14 @@ export function renderPriorityTabs(tabs) {
     div.dataset.url = tab.url; // store url for lookup
     isDev && console.log("favicon hook check : ", tab);
     div.innerHTML = `
-      <span style="
-       display:inline-block;
-       min-width:18px;
-       padding:2px 6px;
-       margin-right:6px;
-       background:#e0e0e0;
-       color:#333;
-       border-radius:4px;
-       font-size:12px;
-       font-weight:bold;
-       text-align:center;
-       font-family:monospace;">
-      ${i + 1}
-      </span>
-      ${
-        tab.favIcon
-          ? `<img src="${tab.favIcon}" alt="favicon" style="width:16px; height:16px; margin-right:6px; vertical-align:middle;" />`
-          : ""
-      }
-      <strong>${tab.title}</strong>
-      <span style="margin-left:6px; color:#666; font-size:12px;">${
-        tab.url
-      }</span>
-      <button class="delete-btn" data-id="${tab.id}" 
-      style="margin-left:auto; background:none; border:none; color:#900; cursor:pointer;">✕</button>
-`;
+      <span class="tab-key">${i + 1}</span>
+      <strong class="tab-title" title="${tab.url}">${tab.title}</strong>
+      <button class="delete-btn" data-id="${tab.id}">✕</button>
+    `;
 
-    // div.appendChild(deleteButton(tab.id));
     div.querySelector(".delete-btn").addEventListener("click", async () => {
       await removePriorityTab(tab.id);
     });
     container.appendChild(div);
   });
-}
-
-function deleteButton(tabId) {
-  const btn = document.createElement("button");
-  btn.innerHTML = "X";
-  btn.addEventListener("click", async () => {
-    await removePriorityTab(tabId);
-  });
-  return btn;
 }

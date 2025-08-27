@@ -5,7 +5,7 @@
     body {
       font-family: sans-serif;
       margin: 12px;
-      min-width: 240px;
+      min-width: 320px;
       background: #f9f9f9;
       color: #333;
     }
@@ -36,16 +36,59 @@
     #priority-tabs {
       display: flex;
       flex-direction: column;
-      gap: 6px; /* spacing between items */
+      gap: 6px;
     }
 
     .tab-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 6px 8px;
       background: white;
       border-radius: 6px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       font-size: 13px;
       line-height: 1.4;
+    }
+
+    .tab-key {
+      display: inline-block;
+      min-width: 18px;
+      padding: 2px 6px;
+      margin-right: 6px;
+      background: #e0e0e0;
+      color: #333;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+      font-family: monospace;
+    }
+
+    .tab-title {
+      flex: 1;                       /* take remaining space */
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin: 0 8px;
+      cursor: default;
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: #900;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .delete-btn:hover {
+      outline: 1px solid #900;
+      background: rgba(255, 0, 0, 0.05);
     }
 
     .tab-item span {
@@ -61,9 +104,9 @@
       100% { box-shadow: 0 0 0 0 red; }
     }
 
-.tab-item.blink {
-  animation: blink-border 0.8s ease-in-out 2; /* blink twice */
-}
+    .tab-item.blink {
+      animation: blink-border 0.8s ease-in-out 2; /* blink twice */
+    }
 
   </style>
 </head>
