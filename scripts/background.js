@@ -22,7 +22,7 @@ chrome.runtime.onInstalled.addListener(() => {
     periodInMinutes: 10, //periodic check every 10min
   });
 
-  chrome.storage.local.set({ priorityTabs: [] });
+  chrome.storage.local.set({ priorityTabs: {} });
 });
 
 // Execution on startup
@@ -53,6 +53,7 @@ chrome.runtime.onStartup.addListener(async () => {
       await removePriorityTab(tab.id);
     }
   }
+  tabObj = null;
 });
 
 // Message handler pipeline

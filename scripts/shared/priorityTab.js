@@ -13,6 +13,13 @@ const isDev = isDevBuild();
 //   - Keep storage and tab state in sync
 //   - Expose a change listener for live UI updates
 // ==================================================
+// Data structures example:
+//  {123456 :
+//       {"key": 1,
+//        "title": "Example Page",
+//        "url": "https://example.com",
+//        "favIconUrl": "https://example.com/favicon.ico"}
+//  }
 
 /**
  * Fetch current priority tabs from chrome.storage
@@ -20,17 +27,24 @@ const isDev = isDevBuild();
  */
 export async function getPriorityTabs() {
   let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-  return priorityTabs || [];
+  return priorityTabs || {};
 }
 
 /**
  * Add a new tab into priority list if not already included
  * @param {Object} tab - Chrome Tab object
  */
-export async function addPriorityTab(tab) {
+export async function addPriorityTab(tab, id) {
   let tabs = await getPriorityTabs();
-  if (!tabs.some((t) => t.id === tab.id)) {
-    tabs.push({ id: tab.id, title: tab.title });
+  const keys = Object.keys(tabs).sort((a, b) => a - b);
+  console.log(keys);
+  if (!keys.some((t) => t.id === id)) {
+    tabs[id] = {
+      key: tab.key,
+      title: tab.title,
+      url: tab.url,
+      favIconUrl: tab.favIcon,
+    };
     await chrome.storage.local.set({ priorityTabs: tabs });
   }
 }
@@ -41,7 +55,8 @@ export async function addPriorityTab(tab) {
  */
 export async function removePriorityTab(tabId) {
   let tabs = await getPriorityTabs();
-  tabs = tabs.filter((t) => t.id !== tabId);
+  delete tabs.tabId;
+  // tabs = tabs.filter((t) => t.id !== tabId);
   await chrome.storage.local.set({ priorityTabs: tabs });
 }
 
@@ -74,19 +89,18 @@ export function listenPriorityTabsChanges(callback) {
  */
 export async function updatePriorityTab(tabId, newTab) {
   let priorityTabs = await getPriorityTabs();
-  if (priorityTabs.length === 0) {
+  if (Object.keys(priorityTabs).length === 0) {
     priorityTabs = null;
     return;
   }
 
-  const index = priorityTabs.findIndex((t) => t.id === tabId);
-  if (index !== -1) {
-    if (newTab.url) priorityTabs[index].url = newTab.url;
-    if (newTab.title) priorityTabs[index].title = newTab.title;
-    if (newTab.favIconUrl) priorityTabs[index].favIconUrl = newTab.favIconUrl;
+  if (priorityTabs[tabId]) {
+    if (newTab.url) priorityTabs[tabId].url = newTab.url;
+    if (newTab.title) priorityTabs[tabId].title = newTab.title;
+    if (newTab.favIconUrl) priorityTabs[tabId].favIconUrl = newTab.favIconUrl;
     chrome.storage.local.set({ priorityTabs: priorityTabs });
     isDev &&
-      console.log("Priority tab URL updated check:", priorityTabs[index]);
+      console.log("Priority tab URL updated check:", priorityTabs[tabId]);
   }
 }
 
@@ -111,21 +125,21 @@ export async function forceUpdatePriorityTab(tabId, newTab) {
 export function renderPriorityTabs(tabs) {
   const container = document.getElementById("priority-tabs");
   container.innerHTML = "";
-  tabs.forEach((tab, i) => {
+  for (const [id, tab] of Object.entries(tabs)) {
     const div = document.createElement("div");
     div.className = "tab-item";
-    div.dataset.id = tab.id;
+    div.dataset.id = id;
     div.dataset.url = tab.url; // store url for lookup
     isDev && console.log("favicon hook check : ", tab);
     div.innerHTML = `
-      <span class="tab-key">${i + 1}</span>
+      <span class="tab-key">${tab.key}</span>
       <strong class="tab-title" title="${tab.url}">${tab.title}</strong>
-      <button class="delete-btn" data-id="${tab.id}">✕</button>
-    `;
+      <button class="delete-btn" data-id="${id}">✕</button>
+      `;
 
     div.querySelector(".delete-btn").addEventListener("click", async () => {
-      await removePriorityTab(tab.id);
+      await removePriorityTab(id);
     });
     container.appendChild(div);
-  });
+  }
 }
