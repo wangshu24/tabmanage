@@ -55,7 +55,7 @@ export async function addPriorityTab(tab, id) {
  */
 export async function removePriorityTab(tabId) {
   let tabs = await getPriorityTabs();
-  delete tabs.tabId;
+  delete tabs[tabId];
   // tabs = tabs.filter((t) => t.id !== tabId);
   await chrome.storage.local.set({ priorityTabs: tabs });
 }

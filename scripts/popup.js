@@ -14,6 +14,9 @@ if (isDevBuild()) {
 }
 
 // Add current tab to storage when clicked
+// By default, when adding using the extension popup
+// Tab will be added to the most right left available
+// Key on the keyboard
 document.getElementById("add").addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 

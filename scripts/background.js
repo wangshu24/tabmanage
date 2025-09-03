@@ -48,9 +48,9 @@ chrome.runtime.onStartup.addListener(async () => {
   //Check for pinned tabs, to see if they are still available in window
   // TODO: extended to setting, cross-windows or distinct windows
   let priorityTabs = await getPriorityTabs();
-  for (const tab of priorityTabs) {
-    if (!tabObj[tab.id]) {
-      await removePriorityTab(tab.id);
+  for (const [id, tab] of Object.entries(priorityTabs)) {
+    if (!tabObj[id]) {
+      await removePriorityTab(id);
     }
   }
   tabObj = null;
@@ -99,7 +99,6 @@ chrome.runtime.onMessage.addListener(async (message) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "periodicCheck") {
     cleanTabs();
-    await getPriorityTabs();
   }
 });
 
@@ -183,7 +182,8 @@ async function cleanTabs() {
  */
 async function tabMatch(url) {
   const localStorage = await getPriorityTabs();
-  return localStorage.some((tab) => url === tab.url);
+  const tabValues = Object.values(localStorage);
+  return tabValues.some((tab) => url === tab.url);
 }
 
 /**
@@ -239,8 +239,8 @@ async function findDivergentTabs() {
   const localStorage = await getPriorityTabs();
 
   let pinned = {};
-  for (const storedTab of localStorage) {
-    pinned[storedTab.id] = storedTab.url;
+  for (const [id, tab] of Object.entries(localStorage)) {
+    pinned[id] = tab.url;
   }
 
   for (const tab of tabs) {
