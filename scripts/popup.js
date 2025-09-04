@@ -1,4 +1,7 @@
-import { renderPriorityTabs } from "./shared/priorityTab.js";
+import {
+  renderPriorityTabs,
+  implicitKeyPriorityTab,
+} from "./shared/priorityTab.js";
 import { isDevBuild, setupDevTools } from "./shared/devTool.js";
 
 let isDev = false;
@@ -49,6 +52,7 @@ document.getElementById("add").addEventListener("click", async () => {
       return;
     }
 
+    newTab = implicitKeyPriorityTab(newTab, tabs);
     tabs.push(newTab);
     chrome.storage.local.set({ priorityTabs: tabs });
   });

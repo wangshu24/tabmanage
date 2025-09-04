@@ -135,6 +135,7 @@ export function renderPriorityTabs(tabs) {
  * If the new tab was not provided with a key,
  * @param {Object} tab - Chrome Tab object
  * @param {Array} localStorage - Array of {id, title, url, favIcon, key} objects
+ * @return {Object} tab - Chrome Tab object with key assigned
  */
 export async function implicitKeyPriorityTab(tab, localStorage) {
   let key = -1;
@@ -163,6 +164,7 @@ export async function implicitKeyPriorityTab(tab, localStorage) {
 
     // If no gaps, check if 0 is available
     if (hasZero) {
+      console.warn("0 key unavailable, please remove a tab to add more.");
       return;
     } else {
       key = 0;
@@ -170,8 +172,7 @@ export async function implicitKeyPriorityTab(tab, localStorage) {
   }
 
   tab.key = key;
-  localStorage.push(tab);
-  await chrome.storage.local.set({ priorityTabs: localStorage });
+  return tab;
 }
 
 /**
