@@ -130,13 +130,53 @@ export function renderPriorityTabs(tabs) {
 
 /**
  * Implicit key assignment for priority tab
+ * Tracing the list of object keys
+ * And implicitly assign the left most key to the new tab
+ * If the new tab was not provided with a key,
  * @param {Object} tab - Chrome Tab object
  * @param {Array} localStorage - Array of {id, title, url, favIcon, key} objects
  */
-export function implicitKeyPriorityTab(tab, localStorage) {}
+export async function implicitKeyPriorityTab(tab, localStorage) {
+  let key = -1;
+  if (localStorage.length === 0) {
+    key = 1;
+  } else {
+    let keys = [];
+    let hasZero = false;
+    // Checking for 0 and sorting the rest
+    // Mimic the order of numkeys on keyboard
+    for (const t of localStorage) {
+      if (t.key !== 0) {
+        keys.push(t.key);
+      } else {
+        hasZero = true;
+      }
+    }
+    keys = keys.sort((a, b) => a - b);
+    // Find the first gap in the sequence
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i] !== i + 1) {
+        key = i + 1;
+        break;
+      }
+    }
+
+    // If no gaps, check if 0 is available
+    if (hasZero) {
+      return;
+    } else {
+      key = 0;
+    }
+  }
+
+  tab.key = key;
+  localStorage.push(tab);
+  await chrome.storage.local.set({ priorityTabs: localStorage });
+}
 
 /**
  * Sort priority tabs by key
+ * This function should be called whenever any addition, removal, or update to the priority tab happens
  * @param {Array} tabs - Array of {id, title, url, favIcon, key} objects
  */
 export function sortPriorityTabs(tabs) {

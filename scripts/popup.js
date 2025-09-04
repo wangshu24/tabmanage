@@ -42,7 +42,7 @@ document.getElementById("add").addEventListener("click", async () => {
     }
 
     // Limit check
-    if (tabs.length >= 1) {
+    if (tabs.length >= 10) {
       showLimitMessage(
         "Priority Tabs limit reached. Remove a tab before adding another."
       );
