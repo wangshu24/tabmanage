@@ -31,7 +31,7 @@
       let idx = parseInt(e.key, 10) - 1;
       if (e.key === "0") idx = 9; // map 0 → 10th tab
       if (priorityTabs[idx]) {
-        chrome.runtime.sendMessage({ action: "switchToTab", index: idx });
+        chrome.runtime.sendMessage({ action: "switchToTab", numkey: idx });
         removeOverlay();
       }
     } else {

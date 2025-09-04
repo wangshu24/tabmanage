@@ -98,18 +98,30 @@
       margin-top: 2px;
     }
 
+    button svg {
+      vertical-align: middle;   
+      margin-right: 4px;        
+    }
+    
     @keyframes blink-border {
       0%   { box-shadow: 0 0 0 0 red; }
       50%  { box-shadow: 0 0 6px 2px red; }
       100% { box-shadow: 0 0 0 0 red; }
     }
-
+    
+    @keyframes blink-text {
+      0%, 50%, 100% { opacity: 1; }
+      25%, 75% { opacity: 0; }
+    }
+    
     .tab-item.blink {
       animation: blink-border 0.8s ease-in-out 2; 
     }
-    button svg {
-      vertical-align: middle;   
-      margin-right: 4px;        
+    
+    #message.blink {
+      animation: blink-text 5s linear 2; /* blink 3 times */
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -144,9 +156,9 @@
   </svg>
   Refresh
 </button>
+<div id="message"></div>
 
-
-  <div id="priority-tabs"></div>
+<div id="priority-tabs"></div>
 
   <script src="./scripts/popup.js" type="module"></script>
 </body>

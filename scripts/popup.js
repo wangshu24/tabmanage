@@ -41,8 +41,14 @@ document.getElementById("add").addEventListener("click", async () => {
       return;
     }
 
-    // Add new tab to local storage
-    if (tabs.length >= 10) tabs.shift();
+    // Limit check
+    if (tabs.length >= 1) {
+      showLimitMessage(
+        "Priority Tabs limit reached. Remove a tab before adding another."
+      );
+      return;
+    }
+
     tabs.push(newTab);
     chrome.storage.local.set({ priorityTabs: tabs });
   });
@@ -64,3 +70,21 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.storage.local.get("priorityTabs").then((result) => {
   renderPriorityTabs(result.priorityTabs);
 });
+
+// Function to show temporary flashing message
+function showLimitMessage(msg) {
+  const messageDiv = document.getElementById("message");
+  if (!messageDiv) return;
+
+  messageDiv.textContent = msg;
+  messageDiv.classList.add("blink-outline");
+  messageDiv.classList.remove("blink"); // reset animation
+  void messageDiv.offsetWidth; // force reflow
+  messageDiv.classList.add("blink"); // trigger blink
+
+  // Clear message after animation completes (3 blinks × 0.5s)
+  setTimeout(() => {
+    messageDiv.textContent = "";
+    messageDiv.classList.remove("blink");
+  }, 5000);
+}

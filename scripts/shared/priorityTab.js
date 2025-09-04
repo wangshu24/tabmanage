@@ -16,7 +16,7 @@ const isDev = isDevBuild();
 
 /**
  * Fetch current priority tabs from chrome.storage
- * @returns {Promise<Array>} - Array of {id, title} objects
+ * @returns {Promise<Array>} - Array of {id, title, url, favIcon, key} objects
  */
 export async function getPriorityTabs() {
   let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
@@ -103,10 +103,8 @@ export async function forceUpdatePriorityTab(tabId, newTab) {
 }
 
 /**
- * Render priority tabs into a container:
- *   1. priorityTabs storage changes
- *   2. a tab is closed
- * @param {Array} Array of {id, title} objects - Render function
+ * Render priority tabs into a container
+ * @param {Array} Array of {id, title, url, favIcon, key} objects - Render function
  */
 export function renderPriorityTabs(tabs) {
   const container = document.getElementById("priority-tabs");
@@ -128,4 +126,19 @@ export function renderPriorityTabs(tabs) {
     });
     container.appendChild(div);
   });
+}
+
+/**
+ * Implicit key assignment for priority tab
+ * @param {Object} tab - Chrome Tab object
+ * @param {Array} localStorage - Array of {id, title, url, favIcon, key} objects
+ */
+export function implicitKeyPriorityTab(tab, localStorage) {}
+
+/**
+ * Sort priority tabs by key
+ * @param {Array} tabs - Array of {id, title, url, favIcon, key} objects
+ */
+export function sortPriorityTabs(tabs) {
+  return tabs.sort((a, b) => a.key - b.key);
 }

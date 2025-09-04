@@ -76,7 +76,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
     // Handle priority tabs overlay and hotkey switch
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-      const tabInfo = priorityTabs?.[message.index];
+      const tabInfo = priorityTabs?.[message.numkey];
       if (tabInfo && tabInfo.id) {
         try {
           await chrome.tabs.update(tabInfo.id, { active: true });
