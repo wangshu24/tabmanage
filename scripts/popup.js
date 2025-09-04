@@ -1,4 +1,4 @@
-import { renderPriorityTabs } from "./shared/priorityTab.js";
+import { renderPriorityTabs, getPriorityTabs } from "./shared/priorityTab.js";
 import { isDevBuild, setupDevTools } from "./shared/devTool.js";
 
 let isDev = false;
@@ -19,40 +19,53 @@ if (isDevBuild()) {
 // Key on the keyboard
 document.getElementById("add").addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  isDev && console.log("Adding tab:", tab);
 
-  chrome.storage.local.get("priorityTabs").then((result) => {
-    let tabs = result.priorityTabs || [];
-    const newTab = {
-      id: tab.id,
-      title: tab.title,
-      url: tab.url,
-      favIcon: tab.favIconUrl,
-    };
+  let tabObjects = await getPriorityTabs();
 
-    const isTabNew = tabs.some((t) => t.id === newTab.id);
-
-    if (isTabNew) {
-      // Tab already exists → blink its entry
-      const existing = document.querySelector(
-        `.tab-item[data-url="${CSS.escape(newTab.url)}"]`
-      );
-      if (existing) {
-        existing.classList.remove("blink"); // restart animation if already applied
-        void existing.offsetWidth; // force reflow
-        existing.classList.add("blink");
-      }
-      return;
+  if (tabObjects[tab.id]) {
+    // Tab already exists → blink its entry
+    const existing = document.querySelector(`.tab-item[data-id="${tab.id}"]`);
+    if (existing) {
+      existing.classList.remove("blink"); // restart animation if already applied
+      void existing.offsetWidth; // force reflow
+      existing.classList.add("blink");
     }
+    return;
+  }
 
-    // Add new tab to local storage
-    if (tabs.length >= 10) tabs.shift();
-    tabs.push(newTab);
-    chrome.storage.local.set({ priorityTabs: tabs });
-  });
+  // Find next available key (1-10)
+  const existingKeys = Object.values(tabObjects)
+    .map((t) => t.key)
+    .sort((a, b) => a - b);
+  let nextKey = 1;
+  for (let i = 1; i <= 10; i++) {
+    if (!existingKeys.includes(i)) {
+      nextKey = i;
+      break;
+    }
+  }
+
+  // Don't add if we already have 10 tabs
+  if (Object.keys(tabObjects).length >= 10) {
+    isDev && console.log("Maximum tabs reached (10)");
+    return;
+  }
+
+  // Add new tab to storage
+  tabObjects[tab.id] = {
+    key: nextKey,
+    title: tab.title,
+    url: tab.url,
+    favIconUrl: tab.favIconUrl,
+  };
+
+  await chrome.storage.local.set({ priorityTabs: tabObjects });
+  isDev && console.log("Tab added:", tabObjects[tab.id]);
 });
 
 document.getElementById("flush").addEventListener("click", async () => {
-  chrome.storage.local.set({ priorityTabs: [] });
+  chrome.storage.local.set({ priorityTabs: {} });
 });
 
 // Listen for changes and update UI live

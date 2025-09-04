@@ -63,7 +63,8 @@ chrome.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
     // Dev util
     case "getPriorityTabs":
-      await getPriorityTabs();
+      const list = await getPriorityTabs();
+      console.log("priority list: ", list);
       break;
     // Dev util
     case "displayDiscardedTabs":
@@ -77,13 +78,17 @@ chrome.runtime.onMessage.addListener(async (message) => {
     // Handle priority tabs overlay and hotkey switch
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-      const tabInfo = priorityTabs?.[message.index];
-      if (tabInfo && tabInfo.id) {
+      const tabIds = Object.keys(priorityTabs || {});
+      console.log("switchToTab: ", message);
+      const targetTabId = tabIds[message.numkey];
+      console.log("targetTabId: ", targetTabId);
+      if (targetTabId) {
         try {
-          await chrome.tabs.update(tabInfo.id, { active: true });
+          await chrome.tabs.update(parseInt(targetTabId), { active: true });
         } catch (e) {
           isDev &&
             console.warn("Tab may be closed, removing from priority list");
+          await removePriorityTab(targetTabId);
         }
       }
       break;
@@ -122,9 +127,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Handle re-indexing priority tabs on inactive tabs removal
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   isDev && console.log("tab removed: ", tabId);
-  let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-  priorityTabs = (priorityTabs || []).filter((t) => t.id !== tabId);
-  await chrome.storage.local.set({ priorityTabs });
+  await removePriorityTab(tabId);
 });
 
 // Handle normal navigations (full reload, non-SPA)

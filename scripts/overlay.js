@@ -12,10 +12,14 @@
   `;
 
   const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+  const tabEntries = Object.entries(priorityTabs || {});
+
+  // Sort by key for consistent ordering
+  tabEntries.sort(([, a], [, b]) => a.key - b.key);
 
   overlay.innerHTML =
     "<b>Priority Tabs:</b><br>" +
-    priorityTabs.map((t, i) => `${i + 1}. ${t.title}`).join("<br>") +
+    tabEntries.map(([, tab]) => `${tab.key}. ${tab.title}`).join("<br>") +
     "<br><small>Press 1 - 0 to switch</small>" +
     "<br><small>(Click to close · Press 1-0 to switch)</small>";
 
@@ -28,10 +32,14 @@
 
   const keyHandler = (e) => {
     if (/^[0-9]$/.test(e.key)) {
-      let idx = parseInt(e.key, 10) - 1;
-      if (e.key === "0") idx = 9; // map 0 → 10th tab
-      if (priorityTabs[idx]) {
-        chrome.runtime.sendMessage({ action: "switchToTab", index: idx });
+      let keyNum = parseInt(e.key, 10);
+      if (keyNum === 0) keyNum = 10; // map 0 → 10th tab
+
+      // Find tab with matching key
+      const tabEntry = tabEntries.find(([, tab]) => tab.key === keyNum);
+      if (tabEntry) {
+        const tabIndex = tabEntries.indexOf(tabEntry);
+        chrome.runtime.sendMessage({ action: "switchToTab", numkey: tabIndex });
         removeOverlay();
       }
     } else {

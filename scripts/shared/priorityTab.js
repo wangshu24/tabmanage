@@ -23,7 +23,7 @@ const isDev = isDevBuild();
 
 /**
  * Fetch current priority tabs from chrome.storage
- * @returns {Promise<Array>} - Array of {id, title} objects
+ * @returns {Promise<Object>} - Object of priority tab with id as key and priority tab info as value {id : {title, favIcon, url, key} objects
  */
 export async function getPriorityTabs() {
   let { priorityTabs } = await chrome.storage.local.get("priorityTabs");
@@ -38,7 +38,7 @@ export async function addPriorityTab(tab, id) {
   let tabs = await getPriorityTabs();
   const keys = Object.keys(tabs).sort((a, b) => a - b);
   console.log(keys);
-  if (!keys.some((t) => t.id === id)) {
+  if (!(id in tabs)) {
     tabs[id] = {
       key: tab.key,
       title: tab.title,
@@ -70,7 +70,7 @@ export function listenPriorityTabsChanges(callback) {
   // Listen to storage updates (popup, overlay, background changes)
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local" && changes.priorityTabs) {
-      callback(changes.priorityTabs.newValue || []);
+      callback(changes.priorityTabs.newValue || {});
     }
   });
 
@@ -105,14 +105,23 @@ export async function updatePriorityTab(tabId, newTab) {
 }
 
 /**
- * Forecful update priority tab with new information
+ * Forceful update priority tab with new information
  * This function is called by the chrome.webNavigation.onHistoryStateUpdated listener
  */
 export async function forceUpdatePriorityTab(tabId, newTab) {
   let priorityTabs = await getPriorityTabs();
-  if (priorityTabs.length === 0) {
+  if (Object.keys(priorityTabs).length === 0) {
     priorityTabs = null;
     return;
+  }
+
+  if (priorityTabs[tabId]) {
+    if (newTab.url) priorityTabs[tabId].url = newTab.url;
+    if (newTab.title) priorityTabs[tabId].title = newTab.title;
+    if (newTab.favIconUrl) priorityTabs[tabId].favIconUrl = newTab.favIconUrl;
+    await chrome.storage.local.set({ priorityTabs: priorityTabs });
+    isDev &&
+      console.log("Priority tab forcefully updated:", priorityTabs[tabId]);
   }
 }
 
@@ -120,7 +129,7 @@ export async function forceUpdatePriorityTab(tabId, newTab) {
  * Render priority tabs into a container:
  *   1. priorityTabs storage changes
  *   2. a tab is closed
- * @param {Array} Array of {id, title} objects - Render function
+ * @param {Object} Object of priority tabs with id as key and tab info as value
  */
 export function renderPriorityTabs(tabs) {
   const container = document.getElementById("priority-tabs");
