@@ -1,6 +1,7 @@
 import {
   renderPriorityTabs,
   implicitKeyPriorityTab,
+  getPriorityTabs,
 } from "./shared/priorityTab.js";
 import { isDevBuild, setupDevTools } from "./shared/devTool.js";
 
@@ -20,51 +21,49 @@ if (isDevBuild()) {
 document.getElementById("add").addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  chrome.storage.local.get("priorityTabs").then(async (result) => {
-    let tabs = result.priorityTabs || [];
-    let newTab = {
-      id: tab.id,
-      title: tab.title,
-      url: tab.url,
-      favIcon: tab.favIconUrl,
-    };
+  let tabs = await getPriorityTabs();
+  let newTab = {
+    id: tab.id,
+    title: tab.title,
+    url: tab.url,
+    favIcon: tab.favIconUrl,
+  };
 
-    const isTabNew = tabs.some((t) => t.id === newTab.id);
+  const isTabNew = tabs.some((t) => t.id === newTab.id);
 
-    if (isTabNew) {
-      // Tab already exists → blink its entry
-      const existing = document.querySelector(
-        `.tab-item[data-url="${CSS.escape(newTab.url)}"]`
-      );
-      if (existing) {
-        existing.classList.remove("blink"); // restart animation if already applied
-        void existing.offsetWidth; // force reflow
-        existing.classList.add("blink");
-      }
-      return;
+  if (isTabNew) {
+    // Tab already exists → blink its entry
+    const existing = document.querySelector(
+      `.tab-item[data-url="${CSS.escape(newTab.url)}"]`
+    );
+    if (existing) {
+      existing.classList.remove("blink"); // restart animation if already applied
+      void existing.offsetWidth; // force reflow
+      existing.classList.add("blink");
     }
+    return;
+  }
 
-    // Limit check
-    if (tabs.length >= 10) {
-      showLimitMessage(
-        "Priority Tabs limit reached. Remove a tab before adding another."
-      );
-      return;
-    }
+  // Limit check
+  if (tabs.length >= 10) {
+    showLimitMessage(
+      "Priority Tabs limit reached. Remove a tab before adding another."
+    );
+    return;
+  }
 
-    newTab = await implicitKeyPriorityTab(newTab, tabs);
+  newTab = await implicitKeyPriorityTab(newTab, tabs);
 
-    if (!newTab) {
-      showLimitMessage(
-        "All keyboard shortcuts (0-9) are taken. Remove a tab before adding another."
-      );
-      return;
-    }
+  if (!newTab) {
+    showLimitMessage(
+      "All keyboard shortcuts (0-9) are taken. Remove a tab before adding another."
+    );
+    return;
+  }
 
-    isDev && console.log("Adding newTab: ", newTab);
-    tabs.push(newTab);
-    chrome.storage.local.set({ priorityTabs: tabs });
-  });
+  isDev && console.log("Adding newTab: ", newTab);
+  tabs.push(newTab);
+  chrome.storage.local.set({ priorityTabs: tabs });
 });
 
 document.getElementById("flush").addEventListener("click", async () => {
