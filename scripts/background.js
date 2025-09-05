@@ -58,69 +58,74 @@ chrome.runtime.onStartup.addListener(async () => {
 // Message handler pipeline
 // Listen for all messages
 // From popup.js and overlay.js
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+// A small helper to make async/await work cleanly
+function addAsyncMessageListener(handler) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Wrap the handler in a promise
+    Promise.resolve(handler(message, sender))
+      .then((result) => {
+        // If handler returns something, send it back
+        if (result !== undefined) {
+          sendResponse(result);
+        }
+      })
+      .catch((err) => {
+        console.error("Error in message handler:", err);
+        sendResponse({ error: err.message });
+      });
+
+    // Always keep channel open
+    return true;
+  });
+}
+
+// Usage
+addAsyncMessageListener(async (message, sender) => {
   switch (message.action) {
-    // Dev util
-    case "getPriorityTabs":
+    case "getPriorityTabs": {
       const tabs = await getPriorityTabs();
-      console.log("getPriorityTabs: ", tabs);
-      break;
-    // Dev util
+      console.log("getPriorityTabs:", tabs);
+      return { tabs };
+    }
+
     case "displayDiscardedTabs":
       displayDiscardedTabs();
-      break;
+      return; // no response needed
+
     case "displayInactiveTabs":
       displayInactiveTabs();
+      return;
+
     case "displayAllTabs":
       displayAllTabs();
-      break;
-    // Handle priority tabs overlay and hotkey switch
-    case "switchToTab":
+      return;
+
+    case "switchToTab": {
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
       const priorityTabsList = priorityTabs || [];
-      isDev &&
-        console.log(
-          "switchToTab - numkey:",
-          message.numkey,
-          "priorityTabsList:",
-          priorityTabsList
-        );
-
       const tabInfo =
         priorityTabsList.find((tab) => tab.key === message.numkey + 1) ||
         (message.numkey === 9
           ? priorityTabsList.find((tab) => tab.key === 0)
           : null);
 
-      isDev && console.log("switchToTab - found tabInfo:", tabInfo);
-
-      if (tabInfo && tabInfo.id) {
+      if (tabInfo?.id) {
         try {
-          isDev &&
-            console.log(
-              "switchToTab - attempting to switch to tab ID:",
-              tabInfo.id,
-              "type:",
-              typeof tabInfo.id
-            );
-
           await chrome.tabs.update(tabInfo.id, { active: true });
-          isDev && console.log("switchToTab - successfully switched to tab");
+          return { success: true };
         } catch (e) {
-          isDev && console.error("switchToTab - failed to switch to tab:", e);
-          isDev &&
-            console.warn("Tab may be closed, removing from priority list");
           await removePriorityTab(tabInfo.id);
+          return { success: false, error: e.message };
         }
-      } else {
-        isDev && console.log("switchToTab - no tabInfo found or no ID");
       }
-      break;
+      return { success: false, error: "No matching tab" };
+    }
+
     case "findDivergentTabs":
       findDivergentTabs();
-      break;
-    case "open-priority-overlay":
-      // Re-inject overlay (used for refreshing after adding tabs)
+      return;
+
+    case "open-priority-overlay": {
       const [currentTab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
@@ -131,43 +136,24 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           files: ["scripts/overlay.js"],
         });
       }
-      break;
-    case "getCurrentTabInfo":
-      // Get current active tab info for overlay
-      console.log("Background received getCurrentTabInfo request");
+      return;
+    }
 
-      // Handle async operation properly
-      chrome.tabs
-        .query({
-          active: true,
-          currentWindow: true,
-        })
-        .then((tabs) => {
-          const activeTab = tabs[0];
-          console.log("resolve: ", activeTab);
+    case "getCurrentTabInfo": {
+      const [activeTab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (activeTab) {
+        return { tab: activeTab };
+      }
+      return { tab: null, error: "No active tab found" };
+    }
 
-          if (activeTab) {
-            sendResponse({ tab: activeTab });
-            console.log("Sending successful response with tab:", activeTab.id);
-            return true;
-          } else {
-            console.error("No active tab found");
-            sendResponse({ tab: null, error: "No active tab found" });
-          }
-        })
-        .catch((error) => {
-          console.error("Error querying tabs:", error);
-          sendResponse({ tab: null, error: error.message });
-        });
-      console.log("returning true from getCurrentTabInfo");
-      return true; // Keep message channel open for async response
     default:
-      isDev && console.log("default message handler: ", message);
-      console.log("returning true from default message handler");
-      return true; // Keep message channel open for async response
+      console.log("default message handler:", message);
+      return;
   }
-  console.log("returning true from onMessage listener");
-  return true; // Keep message channel open for async response
 });
 
 // Handle alarms
