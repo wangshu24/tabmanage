@@ -58,7 +58,7 @@ chrome.runtime.onStartup.addListener(async () => {
 // Message handler pipeline
 // Listen for all messages
 // From popup.js and overlay.js
-chrome.runtime.onMessage.addListener(async (message) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   switch (message.action) {
     // Dev util
     case "getPriorityTabs":
@@ -134,11 +134,16 @@ chrome.runtime.onMessage.addListener(async (message) => {
       break;
     case "getCurrentTabInfo":
       // Get current active tab info for overlay
-      const [activeTab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      sendResponse({ tab: activeTab });
+
+      chrome.tabs.query(
+        {
+          active: true,
+          currentWindow: true,
+        },
+        (activeTab) => {
+          sendResponse({ tab: activeTab });
+        }
+      );
       return true; // Keep message channel open for async response
     default:
       isDev && console.log("default message handler: ", message);
