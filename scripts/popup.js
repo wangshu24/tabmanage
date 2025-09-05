@@ -20,6 +20,7 @@ if (isDevBuild()) {
 // Add current tab to storage when clicked
 document.getElementById("add").addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  console.log("POPUP - Direct Chrome API tab:", tab);
 
   let tabs = await getPriorityTabs();
   let newTab = {
@@ -28,6 +29,8 @@ document.getElementById("add").addEventListener("click", async () => {
     url: tab.url,
     favIcon: tab.favIconUrl,
   };
+
+  console.log("POPUP - newTab before implicitKeyPriorityTab:", newTab);
 
   const isTabNew = tabs.some((t) => t.id === newTab.id);
 
@@ -53,6 +56,7 @@ document.getElementById("add").addEventListener("click", async () => {
   }
 
   newTab = await implicitKeyPriorityTab(newTab, tabs);
+  console.log("POPUP - newTab after implicitKeyPriorityTab:", newTab);
 
   if (!newTab) {
     showLimitMessage(
@@ -61,7 +65,7 @@ document.getElementById("add").addEventListener("click", async () => {
     return;
   }
 
-  isDev && console.log("Adding newTab: ", newTab);
+  console.log("POPUP - Final newTab being stored:", newTab);
   tabs.push(newTab);
   chrome.storage.local.set({ priorityTabs: tabs });
 });

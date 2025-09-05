@@ -134,20 +134,40 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       break;
     case "getCurrentTabInfo":
       // Get current active tab info for overlay
+      console.log("Background received getCurrentTabInfo request");
 
-      chrome.tabs.query(
-        {
+      // Handle async operation properly
+      chrome.tabs
+        .query({
           active: true,
           currentWindow: true,
-        },
-        (activeTab) => {
-          sendResponse({ tab: activeTab });
-        }
-      );
+        })
+        .then((tabs) => {
+          const activeTab = tabs[0];
+          console.log("resolve: ", activeTab);
+
+          if (activeTab) {
+            sendResponse({ tab: activeTab });
+            console.log("Sending successful response with tab:", activeTab.id);
+            return true;
+          } else {
+            console.error("No active tab found");
+            sendResponse({ tab: null, error: "No active tab found" });
+          }
+        })
+        .catch((error) => {
+          console.error("Error querying tabs:", error);
+          sendResponse({ tab: null, error: error.message });
+        });
+      console.log("returning true from getCurrentTabInfo");
       return true; // Keep message channel open for async response
     default:
       isDev && console.log("default message handler: ", message);
+      console.log("returning true from default message handler");
+      return true; // Keep message channel open for async response
   }
+  console.log("returning true from onMessage listener");
+  return true; // Keep message channel open for async response
 });
 
 // Handle alarms

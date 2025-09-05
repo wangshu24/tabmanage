@@ -5,10 +5,26 @@
   const getCurrentTab = async () => {
     // Request current tab info from background script
     return new Promise((resolve) => {
+      console.log("Overlay sending getCurrentTabInfo message");
+
       chrome.runtime.sendMessage(
         { action: "getCurrentTabInfo" },
         (response) => {
+          console.log("Overlay received response:", response);
+          console.log("chrome.runtime.lastError:", chrome.runtime.lastError);
+
+          if (chrome.runtime.lastError) {
+            console.error("Message passing error:", chrome.runtime.lastError);
+            showNotification(
+              "Error: Communication with background script failed.",
+              "error"
+            );
+            resolve(null);
+            return;
+          }
+
           if (response && response.tab) {
+            console.log("Successfully got tab info:", response.tab);
             resolve({
               id: response.tab.id,
               title: response.tab.title,
@@ -16,16 +32,17 @@
               favIconUrl: response.tab.favIconUrl,
             });
           } else {
-            // Fallback to page info if background doesn't respond
-            resolve({
-              id: Date.now(), // Still use fake ID as fallback
-              title: document.title,
-              url: window.location.href,
-              favIconUrl:
-                document.querySelector('link[rel="icon"]')?.href ||
-                document.querySelector('link[rel="shortcut icon"]')?.href ||
-                null,
-            });
+            // Fail explicitly instead of using corrupt data
+            console.error(
+              "Failed to get current tab info from background script",
+              "Response:",
+              response
+            );
+            showNotification(
+              "Error: Could not get current tab information. Please try again.",
+              "error"
+            );
+            resolve(null); // Return null to indicate failure
           }
         }
       );
@@ -102,7 +119,13 @@
     const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
     let tabs = priorityTabs || [];
     const currentTab = await getCurrentTab();
+    console.log("currentTab: ", currentTab);
 
+    // Check if getCurrentTab failed
+    if (!currentTab) {
+      console.error("Cannot add tab: Failed to get current tab information");
+      return; // Exit early, error notification already shown by getCurrentTab
+    }
     // Check if tab is already in the list (by URL since we can't get real tab ID)
     const existingTab = tabs.find((t) => t.url === currentTab.url);
     if (existingTab) {
@@ -134,13 +157,13 @@
 
     // Add the tab with the specific key
     const newTab = {
-      id: Date.now(), // Use timestamp as fake ID since we can't get real tab ID
+      id: currentTab.id, // Use the real tab ID from getCurrentTab()
       title: currentTab.title,
       url: currentTab.url,
       favIconUrl: currentTab.favIconUrl,
       key: targetKey,
     };
-
+    console.log("OVERLAY - Final newTab being stored:", newTab);
     tabs.push(newTab);
     await chrome.storage.local.set({ priorityTabs: tabs });
 
@@ -261,6 +284,7 @@
         // Just Number: Add current tab to that key
         e.preventDefault();
         addTabWithKey(targetKey);
+        removeOverlay();
       }
     } else {
       // Any other key (not Shift, not 0-9) closes the overlay
