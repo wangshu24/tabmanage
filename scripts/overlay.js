@@ -40,9 +40,15 @@
 
     const notification = document.createElement("div");
     notification.id = "priority-tab-notification";
+    // Calculate overlay height and position notification below it
+    const overlay = document.getElementById("priority-overlay");
+    const overlayRect = overlay
+      ? overlay.getBoundingClientRect()
+      : { bottom: 20, right: 20 };
+
     notification.style.cssText = `
       position: fixed;
-      top: 60px;
+      top: ${overlayRect.bottom + 10}px;
       right: 20px;
       background: ${
         type === "success"
