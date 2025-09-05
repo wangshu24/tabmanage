@@ -96,6 +96,19 @@ chrome.runtime.onMessage.addListener(async (message) => {
     case "findDivergentTabs":
       findDivergentTabs();
       break;
+    case "open-priority-overlay":
+      // Re-inject overlay (used for refreshing after adding tabs)
+      const [currentTab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (currentTab?.id) {
+        await chrome.scripting.executeScript({
+          target: { tabId: currentTab.id },
+          files: ["scripts/overlay.js"],
+        });
+      }
+      break;
     default:
       isDev && console.log("default message handler: ", message);
   }
