@@ -1,17 +1,35 @@
 (async function () {
   if (document.getElementById("priority-overlay")) return;
 
-  // Get current tab info
-  const getCurrentTab = () => {
-    return {
-      id: Math.random(), // This will be replaced by actual tab ID from background
-      title: document.title,
-      url: window.location.href,
-      favIconUrl:
-        document.querySelector('link[rel="icon"]')?.href ||
-        document.querySelector('link[rel="shortcut icon"]')?.href ||
-        null,
-    };
+  // Get current tab info with real tab ID from background
+  const getCurrentTab = async () => {
+    // Request current tab info from background script
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { action: "getCurrentTabInfo" },
+        (response) => {
+          if (response && response.tab) {
+            resolve({
+              id: response.tab.id,
+              title: response.tab.title,
+              url: response.tab.url,
+              favIconUrl: response.tab.favIconUrl,
+            });
+          } else {
+            // Fallback to page info if background doesn't respond
+            resolve({
+              id: Date.now(), // Still use fake ID as fallback
+              title: document.title,
+              url: window.location.href,
+              favIconUrl:
+                document.querySelector('link[rel="icon"]')?.href ||
+                document.querySelector('link[rel="shortcut icon"]')?.href ||
+                null,
+            });
+          }
+        }
+      );
+    });
   };
 
   // Show notification function
@@ -77,7 +95,7 @@
   const addTabWithKey = async (targetKey) => {
     const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
     let tabs = priorityTabs || [];
-    const currentTab = getCurrentTab();
+    const currentTab = await getCurrentTab();
 
     // Check if tab is already in the list (by URL since we can't get real tab ID)
     const existingTab = tabs.find((t) => t.url === currentTab.url);
@@ -125,14 +143,40 @@
       "success"
     );
 
-    // Refresh the overlay display
-    setTimeout(() => {
-      removeOverlay();
-      // Re-inject overlay to show updated list
-      setTimeout(() => {
-        chrome.runtime.sendMessage({ action: "open-priority-overlay" });
-      }, 100);
-    }, 1000);
+    // Update the overlay display immediately
+    updateOverlayContent();
+  };
+
+  // Function to generate overlay content
+  const generateOverlayContent = (tabsList) => {
+    // Sort tabs by key for display
+    const sortedTabs = tabsList.sort((a, b) => {
+      // Handle key 0 (should appear last)
+      if (a.key === 0 && b.key !== 0) return 1;
+      if (b.key === 0 && a.key !== 0) return -1;
+      return a.key - b.key;
+    });
+
+    return (
+      "<b>Priority Tabs:</b><br>" +
+      sortedTabs
+        .map((t) => `${t.key === 0 ? "0" : t.key}. ${t.title}`)
+        .join("<br>") +
+      "<br><small>Press 1-9,0 to add current tab</small>" +
+      "<br><small>Shift+1-9,0 to switch to tab</small>" +
+      "<br><small>(Any other key to close)</small>"
+    );
+  };
+
+  // Function to update overlay content
+  const updateOverlayContent = async () => {
+    const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
+    const updatedTabs = priorityTabs || [];
+    overlay.innerHTML = generateOverlayContent(updatedTabs);
+
+    // Update the tabs variable for key handlers
+    tabs.length = 0; // Clear existing array
+    tabs.push(...updatedTabs); // Add updated tabs
   };
 
   const overlay = document.createElement("div");
@@ -148,77 +192,104 @@
   const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
   const tabs = priorityTabs || [];
 
-  // Sort tabs by key for display
-  const sortedTabs = tabs.sort((a, b) => {
-    // Handle key 0 (should appear last)
-    if (a.key === 0 && b.key !== 0) return 1;
-    if (b.key === 0 && a.key !== 0) return -1;
-    return a.key - b.key;
-  });
-
-  overlay.innerHTML =
-    "<b>Priority Tabs:</b><br>" +
-    sortedTabs
-      .map((t) => `${t.key === 0 ? "0" : t.key}. ${t.title}`)
-      .join("<br>") +
-    "<br><small>Press 1-9, 0 to switch</small>" +
-    "<br><small>Alt+1-9,0 to add current tab</small>" +
-    "<br><small>(Click to close · Esc to close)</small>";
-
+  overlay.innerHTML = generateOverlayContent(tabs);
   document.body.appendChild(overlay);
 
   function removeOverlay() {
     document.removeEventListener("keydown", keyHandler);
+    document.removeEventListener("click", clickHandler);
     overlay.remove();
   }
 
-  // Track Alt key state
-  let altPressed = false;
+  // Track Shift key state for switching to existing tabs
+  let shiftPressed = false;
 
   const keyHandler = (e) => {
-    // Track Alt key
-    if (e.key === "Alt") {
-      altPressed = true;
+    // Track Shift key
+    if (e.key === "Shift") {
+      shiftPressed = true;
       return;
     }
 
-    if (/^[0-9]$/.test(e.key)) {
-      const keyPressed = parseInt(e.key, 10);
+    // Check for number keys using key codes (more reliable with modifiers)
+    const isNumberKey =
+      (e.code >= "Digit0" && e.code <= "Digit9") ||
+      (e.code >= "Numpad0" && e.code <= "Numpad9");
+
+    if (isNumberKey) {
+      // Extract the number from the key code
+      let keyPressed;
+      if (e.code.startsWith("Digit")) {
+        keyPressed = parseInt(e.code.replace("Digit", ""), 10);
+      } else {
+        keyPressed = parseInt(e.code.replace("Numpad", ""), 10);
+      }
+
       const targetKey = keyPressed === 0 ? 0 : keyPressed;
 
-      if (altPressed) {
-        // Alt+Number: Add current tab to that key
-        e.preventDefault();
-        addTabWithKey(targetKey);
-      } else {
-        // Just Number: Switch to that tab
+      if (shiftPressed || e.shiftKey) {
+        // Shift+Number: Switch to existing tab
         const targetTab = tabs.find((tab) => tab.key === targetKey);
+        console.log(
+          "Shift+Number pressed - targetKey:",
+          targetKey,
+          "targetTab:",
+          targetTab,
+          "all tabs:",
+          tabs
+        );
         if (targetTab) {
           const numkey = keyPressed === 0 ? 9 : keyPressed - 1;
+          console.log(
+            "Sending switchToTab message - numkey:",
+            numkey,
+            "for tab:",
+            targetTab
+          );
           chrome.runtime.sendMessage({ action: "switchToTab", numkey: numkey });
           removeOverlay();
+        } else {
+          console.log("No target tab found for key:", targetKey);
         }
+      } else {
+        // Just Number: Add current tab to that key
+        e.preventDefault();
+        addTabWithKey(targetKey);
       }
-    } else if (e.key === "Escape") {
+    } else {
+      // Any other key (not Shift, not 0-9) closes the overlay
       removeOverlay();
     }
   };
 
   const keyUpHandler = (e) => {
-    if (e.key === "Alt") {
-      altPressed = false;
+    if (e.key === "Shift") {
+      shiftPressed = false;
+    }
+  };
+
+  // Click handler to close overlay when clicking outside
+  const clickHandler = (e) => {
+    // If click is outside the overlay, close it
+    if (!overlay.contains(e.target)) {
+      removeOverlay();
     }
   };
 
   document.addEventListener("keydown", keyHandler);
   document.addEventListener("keyup", keyUpHandler);
+  // Add click listener to document to catch clicks outside overlay
+  document.addEventListener("click", clickHandler);
 
-  // Clean up keyup listener when overlay is removed
+  // Clean up all listeners when overlay is removed
   const originalRemoveOverlay = removeOverlay;
   removeOverlay = function () {
     document.removeEventListener("keyup", keyUpHandler);
     originalRemoveOverlay();
   };
 
-  overlay.addEventListener("click", removeOverlay);
+  // Prevent overlay click from bubbling up to document click handler
+  overlay.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
 })();

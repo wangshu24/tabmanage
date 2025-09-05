@@ -78,19 +78,42 @@ chrome.runtime.onMessage.addListener(async (message) => {
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
       const priorityTabsList = priorityTabs || [];
+      isDev &&
+        console.log(
+          "switchToTab - numkey:",
+          message.numkey,
+          "priorityTabsList:",
+          priorityTabsList
+        );
+
       const tabInfo =
         priorityTabsList.find((tab) => tab.key === message.numkey + 1) ||
         (message.numkey === 9
           ? priorityTabsList.find((tab) => tab.key === 0)
           : null);
+
+      isDev && console.log("switchToTab - found tabInfo:", tabInfo);
+
       if (tabInfo && tabInfo.id) {
         try {
+          isDev &&
+            console.log(
+              "switchToTab - attempting to switch to tab ID:",
+              tabInfo.id,
+              "type:",
+              typeof tabInfo.id
+            );
+
           await chrome.tabs.update(tabInfo.id, { active: true });
+          isDev && console.log("switchToTab - successfully switched to tab");
         } catch (e) {
+          isDev && console.error("switchToTab - failed to switch to tab:", e);
           isDev &&
             console.warn("Tab may be closed, removing from priority list");
           await removePriorityTab(tabInfo.id);
         }
+      } else {
+        isDev && console.log("switchToTab - no tabInfo found or no ID");
       }
       break;
     case "findDivergentTabs":
@@ -109,6 +132,14 @@ chrome.runtime.onMessage.addListener(async (message) => {
         });
       }
       break;
+    case "getCurrentTabInfo":
+      // Get current active tab info for overlay
+      const [activeTab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      sendResponse({ tab: activeTab });
+      return true; // Keep message channel open for async response
     default:
       isDev && console.log("default message handler: ", message);
   }
