@@ -62,7 +62,8 @@ chrome.runtime.onMessage.addListener(async (message) => {
   switch (message.action) {
     // Dev util
     case "getPriorityTabs":
-      await getPriorityTabs();
+      const tabs = await getPriorityTabs();
+      console.log("getPriorityTabs: ", tabs);
       break;
     // Dev util
     case "displayDiscardedTabs":
@@ -76,13 +77,19 @@ chrome.runtime.onMessage.addListener(async (message) => {
     // Handle priority tabs overlay and hotkey switch
     case "switchToTab":
       const { priorityTabs } = await chrome.storage.local.get("priorityTabs");
-      const tabInfo = priorityTabs?.[message.numkey];
+      const priorityTabsList = priorityTabs || [];
+      const tabInfo =
+        priorityTabsList.find((tab) => tab.key === message.numkey + 1) ||
+        (message.numkey === 9
+          ? priorityTabsList.find((tab) => tab.key === 0)
+          : null);
       if (tabInfo && tabInfo.id) {
         try {
           await chrome.tabs.update(tabInfo.id, { active: true });
         } catch (e) {
           isDev &&
             console.warn("Tab may be closed, removing from priority list");
+          await removePriorityTab(tabInfo.id);
         }
       }
       break;

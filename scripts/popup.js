@@ -20,9 +20,9 @@ if (isDevBuild()) {
 document.getElementById("add").addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  chrome.storage.local.get("priorityTabs").then((result) => {
+  chrome.storage.local.get("priorityTabs").then(async (result) => {
     let tabs = result.priorityTabs || [];
-    const newTab = {
+    let newTab = {
       id: tab.id,
       title: tab.title,
       url: tab.url,
@@ -52,7 +52,16 @@ document.getElementById("add").addEventListener("click", async () => {
       return;
     }
 
-    newTab = implicitKeyPriorityTab(newTab, tabs);
+    newTab = await implicitKeyPriorityTab(newTab, tabs);
+
+    if (!newTab) {
+      showLimitMessage(
+        "All keyboard shortcuts (0-9) are taken. Remove a tab before adding another."
+      );
+      return;
+    }
+
+    isDev && console.log("Adding newTab: ", newTab);
     tabs.push(newTab);
     chrome.storage.local.set({ priorityTabs: tabs });
   });

@@ -107,25 +107,51 @@ export async function forceUpdatePriorityTab(tabId, newTab) {
  * @param {Array} Array of {id, title, url, favIcon, key} objects - Render function
  */
 export function renderPriorityTabs(tabs) {
+  if (tabs.length === 0) return;
+  tabs = sortPriorityTabs(tabs);
   const container = document.getElementById("priority-tabs");
   container.innerHTML = "";
-  tabs.forEach((tab, i) => {
-    const div = document.createElement("div");
-    div.className = "tab-item";
-    div.dataset.id = tab.id;
-    div.dataset.url = tab.url; // store url for lookup
-    isDev && console.log("favicon hook check : ", tab);
-    div.innerHTML = `
-      <span class="tab-key">${i + 1}</span>
+
+  if (tabs[0].key === 0) {
+    // Render list with numkey 0 as the last key
+    if (tabs.length > 1) {
+      for (let i = 1; i < tabs.length; i++) {
+        const div = renderTabItam(tabs[i]);
+        container.appendChild(div);
+      }
+    }
+    const div = renderTabItam(tabs[0]);
+    container.appendChild(div);
+  } else {
+    // Render list normally when numkey 0 is not part if the list
+    tabs.forEach((tab) => {
+      const div = renderTabItam(tab);
+      container.appendChild(div);
+    });
+  }
+}
+
+/**
+ * Private helper function for renderPriorityTabs
+ * @param {Object} tab - Chrome Tab object
+ * @returns {HTMLDivElement} - Rendered tab item
+ */
+function renderTabItam(tab) {
+  const div = document.createElement("div");
+  div.className = "tab-item";
+  div.dataset.id = tab.id;
+  div.dataset.url = tab.url; // store url for lookup
+  isDev && console.log("favicon hook check : ", tab);
+  div.innerHTML = `
+      <span class="tab-key">${tab.key}</span>
       <strong class="tab-title" title="${tab.url}">${tab.title}</strong>
       <button class="delete-btn" data-id="${tab.id}">✕</button>
     `;
 
-    div.querySelector(".delete-btn").addEventListener("click", async () => {
-      await removePriorityTab(tab.id);
-    });
-    container.appendChild(div);
+  div.querySelector(".delete-btn").addEventListener("click", async () => {
+    await removePriorityTab(tab.id);
   });
+  return div;
 }
 
 /**
@@ -138,39 +164,37 @@ export function renderPriorityTabs(tabs) {
  * @return {Object} tab - Chrome Tab object with key assigned
  */
 export async function implicitKeyPriorityTab(tab, localStorage) {
+  isDev && console.log("Assigning key to tab: ", tab);
   let key = -1;
+
   if (localStorage.length === 0) {
     key = 1;
   } else {
-    let keys = [];
-    let hasZero = false;
-    // Checking for 0 and sorting the rest
-    // Mimic the order of numkeys on keyboard
-    for (const t of localStorage) {
-      if (t.key !== 0) {
-        keys.push(t.key);
-      } else {
-        hasZero = true;
-      }
-    }
-    keys = keys.sort((a, b) => a - b);
-    // Find the first gap in the sequence
-    for (let i = 0; i < keys.length; i++) {
-      if (keys[i] !== i + 1) {
-        key = i + 1;
+    // Get all existing keys
+    const existingKeys = localStorage.map((t) => t.key).sort((a, b) => a - b);
+    isDev && console.log("Existing keys:", existingKeys);
+
+    // Find first available key from 1-9
+    for (let i = 1; i <= 9; i++) {
+      if (!existingKeys.includes(i)) {
+        key = i;
         break;
       }
     }
 
-    // If no gaps, check if 0 is available
-    if (hasZero) {
-      console.warn("0 key unavailable, please remove a tab to add more.");
-      return;
-    } else {
+    // If keys 1-9 are full, try key 0
+    if (key === -1 && !existingKeys.includes(0)) {
       key = 0;
+    }
+
+    // If all keys are taken, show error
+    if (key === -1) {
+      console.error("All keys (0-9) are taken, cannot add more tabs");
+      return null;
     }
   }
 
+  isDev && console.log("Assigned key:", key, "to tab:", tab.title);
   tab.key = key;
   return tab;
 }
