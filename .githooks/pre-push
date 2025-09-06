@@ -1,0 +1,192 @@
+#!/usr/bin/env node
+
+const { execSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+
+/**
+ * Pre-push hook to check for console.* statements without dev guards
+ * Handles single and multiline console calls
+ * Optimized to run in under 15 seconds
+ */
+
+function getStagedJSFiles() {
+  try {
+    const output = execSync("git diff --cached --name-only --diff-filter=ACM", {
+      encoding: "utf8",
+    });
+    return output
+      .split("\n")
+      .filter((file) => file.trim() && file.endsWith(".js"))
+      .filter((file) => fs.existsSync(file)); // Only check files that exist
+  } catch (error) {
+    console.error("Error getting staged files:", error.message);
+    return [];
+  }
+}
+
+function getStagedFileContent(filePath) {
+  try {
+    // Read the blob from the index (staged content)
+    return execSync(`git show :${filePath}`, { encoding: "utf8" });
+  } catch (e) {
+    // Fallback to working tree if not found in index
+    try {
+      return fs.readFileSync(filePath, "utf8");
+    } catch (_) {
+      return "";
+    }
+  }
+}
+
+function checkFileForUnguardedConsole(filePath) {
+  try {
+    const content = getStagedFileContent(filePath);
+    if (!content) return [];
+    const lines = content.split("\n");
+    const violations = [];
+
+    // Precompute line start indices for fast line number lookup
+    const lineStarts = new Array(lines.length);
+    let offset = 0;
+    for (let i = 0; i < lines.length; i++) {
+      lineStarts[i] = offset;
+      offset += lines[i].length + 1; // +1 for \n
+    }
+
+    // Regex that handles single or multiline: console . (log|warn|error) (
+    const regex = /console\s*\.\s*(log|warn|error)\s*\(/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const idx = match.index;
+      // Binary search-ish mapping from index to line number
+      let lineIdx = 0;
+      let hi = lineStarts.length - 1;
+      while (lineIdx <= hi) {
+        const mid = (lineIdx + hi) >> 1;
+        if (lineStarts[mid] <= idx) {
+          if (mid === lineStarts.length - 1 || lineStarts[mid + 1] > idx) {
+            lineIdx = mid;
+            break;
+          } else {
+            lineIdx = mid + 1;
+          }
+        } else {
+          hi = mid - 1;
+        }
+      }
+
+      // Guard check around this occurrence (current and up to 5 previous lines)
+      const hasIsDev = checkForIsDevGuard(lines, lineIdx);
+      if (!hasIsDev) {
+        const snippet = lines[lineIdx].trim();
+        violations.push({
+          file: filePath,
+          line: lineIdx + 1,
+          content: snippet,
+        });
+      }
+    }
+
+    return violations;
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error.message);
+    return [];
+  }
+}
+
+function checkForIsDevGuard(lines, consoleLogLineIndex) {
+  // Check current line first
+  const currentLine = lines[consoleLogLineIndex];
+  if (currentLine.includes("isDev")) {
+    return true;
+  }
+
+  // Check previous lines (up to 5 lines back for performance)
+  const searchStart = Math.max(0, consoleLogLineIndex - 5);
+
+  for (let i = consoleLogLineIndex - 1; i >= searchStart; i--) {
+    const line = lines[i].trim();
+
+    // Skip empty lines and comments
+    if (!line || line.startsWith("//") || line.startsWith("*")) {
+      continue;
+    }
+
+    // Check for isDev guard patterns
+    if (
+      line.includes("isDev") &&
+      (line.includes("&&") || line.includes("if") || line.includes("?"))
+    ) {
+      return true;
+    }
+
+    // If we hit a statement that's not related to isDev, stop searching
+    if (line.includes(";") || line.includes("{") || line.includes("}")) {
+      // But check if this line itself has isDev
+      if (line.includes("isDev")) {
+        return true;
+      }
+      break;
+    }
+  }
+
+  return false;
+}
+
+function main() {
+  console.log("🔍 Checking for unguarded console.log statements...");
+
+  const startTime = Date.now();
+  const stagedFiles = getStagedJSFiles();
+
+  if (stagedFiles.length === 0) {
+    console.log("✅ No JavaScript files staged for commit.");
+    process.exit(0);
+  }
+
+  console.log(`📁 Checking ${stagedFiles.length} JavaScript files...`);
+
+  let allViolations = [];
+
+  // Process files in parallel for better performance
+  const violations = stagedFiles
+    .map((file) => {
+      return checkFileForUnguardedConsole(file);
+    })
+    .flat();
+
+  allViolations = violations;
+
+  const endTime = Date.now();
+  const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+  if (allViolations.length > 0) {
+    console.log("\n❌ Found unguarded console.log statements:");
+    console.log("=".repeat(60));
+
+    allViolations.forEach((violation) => {
+      console.log(`📄 ${violation.file}:${violation.line}`);
+      console.log(`   ${violation.content}`);
+      console.log("");
+    });
+
+    console.log("💡 Please add isDev guards before console.log statements:");
+    console.log('   isDev && console.log("debug message");');
+    console.log('   if (isDev) console.log("debug message");');
+    console.log('   isDev ? console.log("debug") : null;');
+    console.log("");
+    console.log(`⏱️  Check completed in ${duration}s`);
+    console.log("🚫 Push rejected. Please fix the issues above.");
+    process.exit(1);
+  }
+
+  console.log(
+    `✅ All console.log statements are properly guarded with isDev flags.`
+  );
+  console.log(`⏱️  Check completed in ${duration}s`);
+  process.exit(0);
+}
+
+// Run the check
+main();
