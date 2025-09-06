@@ -107,10 +107,17 @@ export async function forceUpdatePriorityTab(tabId, newTab) {
  * @param {Array} Array of {id, title, url, favIcon, key} objects - Render function
  */
 export function renderPriorityTabs(tabs) {
-  if (tabs.length === 0) return;
-  tabs = sortPriorityTabs(tabs);
   const container = document.getElementById("priority-tabs");
+  if (!container) return;
+
+  // Always clear first to avoid stale UI when list becomes empty
   container.innerHTML = "";
+
+  if (!tabs || tabs.length === 0) {
+    return;
+  }
+
+  tabs = sortPriorityTabs(tabs);
 
   if (tabs[0].key === 0) {
     // Render list with numkey 0 as the last key
@@ -123,7 +130,7 @@ export function renderPriorityTabs(tabs) {
     const div = renderTabItam(tabs[0]);
     container.appendChild(div);
   } else {
-    // Render list normally when numkey 0 is not part if the list
+    // Render list normally when numkey 0 is not part of the list
     tabs.forEach((tab) => {
       const div = renderTabItam(tab);
       container.appendChild(div);
