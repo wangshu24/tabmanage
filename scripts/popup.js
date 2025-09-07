@@ -27,7 +27,7 @@ document.getElementById("add").addEventListener("click", async () => {
     };
 
     const isTabNew = tabs.some((t) => t.id === newTab.id);
-
+    console.log("isTabNew: ", isTabNew);
     if (isTabNew) {
       // Tab already exists → blink its entry
       const existing = document.querySelector(
