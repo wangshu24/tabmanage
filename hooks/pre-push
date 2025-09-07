@@ -10,31 +10,43 @@ START_TIME=$(date +%s%N)
 
 IGNORE_FILE="scripts/shared/devTool.js"
 
-# Determine JS files that will be pushed by reading refs from stdin
-# For each ref update, diff remote_sha..local_sha to list changed files
-read_updates=0
-FILES=$(\
-  while read -r local_ref local_sha remote_ref remote_sha; do
-    read_updates=1
-    # Skip deletes
-    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
-      continue
-    fi
-    # If new branch/tag, compare against empty tree; else against remote sha
-    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
-      range="$local_sha"
-    else
-      range="$remote_sha..$local_sha"
-    fi
-    git diff --name-only --diff-filter=ACM $range
-  done < /dev/stdin | grep '\.js$' | grep -v "$IGNORE_FILE" | sort -u
-)
+# Determine JS files to check:
+#  - If run with --all or -a, scan the entire repo (tracked JS files)
+#  - Otherwise, read refs from stdin and diff remote_sha..local_sha
+MODE_ALL=0
+if [ "$1" = "--all" ] || [ "$1" = "-a" ]; then
+  MODE_ALL=1
+fi
 
-# If no JS files in the push, skip quickly
-[ -z "$FILES" ] && {
-  echo "✅ No JS changes to check in this push. Push allowed."
+if [ "$MODE_ALL" -eq 1 ]; then
+  FILES=$(git ls-files | grep '\.js$' | grep -v "$IGNORE_FILE" | sort -u)
+else
+  FILES=$(\
+    while read -r local_ref local_sha remote_ref remote_sha; do
+      # Skip deletes
+      if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+      fi
+      # If new branch/tag, compare against empty tree; else against remote sha
+      if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        range="$local_sha"
+      else
+        range="$remote_sha..$local_sha"
+      fi
+      git diff --name-only --diff-filter=ACM $range
+    done < /dev/stdin | grep '\.js$' | grep -v "$IGNORE_FILE" | sort -u
+  )
+fi
+
+# If no JS files to check, skip quickly
+if [ -z "$FILES" ]; then
+  if [ "$MODE_ALL" -eq 1 ]; then
+    echo "✅ No JS files found to check. Done."
+  else
+    echo "✅ No JS changes to check in this push. Push allowed."
+  fi
   exit 0
-}
+fi
 
 invalid_logs=""
 
