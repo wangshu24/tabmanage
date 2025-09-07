@@ -1,8 +1,8 @@
 #!/bin/sh
 # pre-push hook
-# Blocks console.log unless guarded by isDev
+# Blocks console.(log|warn|error) unless guarded by isDev
 # Ignores env file where isDevBuild() is defined
-# Supports multi-line console.log
+# Supports single- and multi-line console calls
 # Tracks execution time
 # Optimized: only checks staged files being pushed
 
@@ -10,14 +10,43 @@ START_TIME=$(date +%s%N)
 
 IGNORE_FILE="scripts/shared/devTool.js"
 
-# Only check staged JS files
-FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.js$' | grep -v "$IGNORE_FILE")
+# Determine JS files to check:
+#  - If run with --all or -a, scan the entire repo (tracked JS files)
+#  - Otherwise, read refs from stdin and diff remote_sha..local_sha
+MODE_ALL=0
+if [ "$1" = "--all" ] || [ "$1" = "-a" ]; then
+  MODE_ALL=1
+fi
 
-# If no staged JS files, skip quickly
-[ -z "$FILES" ] && {
-  echo "✅ No staged JS files to check. Push allowed."
+if [ "$MODE_ALL" -eq 1 ]; then
+  FILES=$(git ls-files | grep '\.js$' | grep -v "$IGNORE_FILE" | sort -u)
+else
+  FILES=$(\
+    while read -r local_ref local_sha remote_ref remote_sha; do
+      # Skip deletes
+      if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+      fi
+      # If new branch/tag, compare against empty tree; else against remote sha
+      if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        range="$local_sha"
+      else
+        range="$remote_sha..$local_sha"
+      fi
+      git diff --name-only --diff-filter=ACM $range
+    done < /dev/stdin | grep '\.js$' | grep -v "$IGNORE_FILE" | sort -u
+  )
+fi
+
+# If no JS files to check, skip quickly
+if [ -z "$FILES" ]; then
+  if [ "$MODE_ALL" -eq 1 ]; then
+    echo "✅ No JS files found to check. Done."
+  else
+    echo "✅ No JS changes to check in this push. Push allowed."
+  fi
   exit 0
-}
+fi
 
 invalid_logs=""
 
@@ -29,13 +58,21 @@ for file in $FILES; do
     console_buffer=""
     console_start_line=0
 
+    # Read STAGED content (fallback to working tree if not in index)
+    tmpfile=$(mktemp)
+    if git cat-file -e ":$file" 2>/dev/null; then
+        git show ":$file" > "$tmpfile" 2>/dev/null || true
+    else
+        [ -f "$file" ] && cp "$file" "$tmpfile" 2>/dev/null || true
+    fi
+
     while IFS= read -r line || [ -n "$line" ]; do
         lineno=$((lineno+1))
         trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
 
         # Update block depth for { } tracking
-        opens=$(awk -F"{" '{print NF-1}' <<< "$line")
-        closes=$(awk -F"}" '{print NF-1}' <<< "$line")
+        opens=$(printf "%s" "$line" | grep -o "{" | wc -l | tr -d ' ')
+        closes=$(printf "%s" "$line" | grep -o "}" | wc -l | tr -d ' ')
         block_depth=$((block_depth + opens - closes))
         [ $block_depth -le 0 ] && inside_isDev_block=0
 
@@ -50,9 +87,11 @@ for file in $FILES; do
             # End of multi-line log detected by semicolon
             [[ "$trimmed" == *\; ]] && {
                 # Skip if inside isDev block or guarded
-                [[ "$console_buffer" == "isDev &&"* ]] && inside_console_log=0 && console_buffer="" && continue
-                [[ "$console_buffer" == "if (isDev)"* ]] && inside_console_log=0 && console_buffer="" && continue
-                [ $inside_isDev_block -eq 1 ] && inside_console_log=0 && console_buffer="" && continue
+                case "$console_buffer" in
+                  isDev\ \&\&*) inside_console_log=0; console_buffer=""; continue ;;
+                esac
+                echo "$console_buffer" | grep -qE '^if\s*\(\s*isDev\s*\)' && { inside_console_log=0; console_buffer=""; continue; }
+                [ $inside_isDev_block -eq 1 ] && { inside_console_log=0; console_buffer=""; continue; }
 
                 invalid_logs="$invalid_logs\n$file:$console_start_line: ${console_buffer}"
                 inside_console_log=0
@@ -61,10 +100,11 @@ for file in $FILES; do
             continue
         fi
 
-        # --- Detect console.log start ---
-        [[ "$trimmed" == *console.log* ]] || continue
-        [[ "$trimmed" =~ ^if[[:space:]]*\(\s*isDev\s*\).*console.log.* ]] && continue
-        [[ "$trimmed" =~ ^isDev[[:space:]]*&&.*console.log.* ]] && continue
+        # --- Detect console call start ---
+        echo "$trimmed" | grep -qE 'console\.[a-zA-Z]+\s*\(' || continue
+        # Guard patterns on same line
+        echo "$trimmed" | grep -qE '^if\s*\(\s*isDev\s*\).*console\.(log|warn|error)' && continue
+        echo "$trimmed" | grep -qE '^isDev\s*&&.*console\.(log|warn|error)' && continue
         [ $inside_isDev_block -eq 1 ] && continue
 
         # Check if multi-line or single-line
@@ -76,7 +116,9 @@ for file in $FILES; do
             console_start_line=$lineno
         fi
 
-    done < "$file"
+    done < "$tmpfile"
+
+    rm -f "$tmpfile"
 done
 
 END_TIME=$(date +%s%N)
