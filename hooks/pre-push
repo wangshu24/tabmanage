@@ -58,6 +58,7 @@ for file in $FILES; do
     console_buffer=""
     console_start_line=0
     prev_guard_line=""
+    last_was_isdev_and=0
 
     # Read STAGED content (fallback to working tree if not in index)
     tmpfile=$(mktemp)
@@ -71,10 +72,7 @@ for file in $FILES; do
         lineno=$((lineno+1))
         trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
 
-        # Track previous non-empty, non-comment line (for chained `isDev &&` then console on next line)
-        if [ -n "$(printf "%s" "$trimmed" | tr -d ' ')" ] && ! echo "$trimmed" | grep -qE '^//|^\*'; then
-            prev_guard_line="$trimmed"
-        fi
+
 
         # Update block depth for { } tracking
         opens=$(printf "%s" "$line" | grep -o "{" | wc -l | tr -d ' ')
@@ -85,6 +83,7 @@ for file in $FILES; do
         # Enter isDev block
         case "$trimmed" in
             if\ \(isDev\)*\{*) inside_isDev_block=1 ;;
+            isDev\ \&\&) last_was_isdev_and=1; continue ;;
         esac
 
         # --- Multi-line console.log handling ---
@@ -111,8 +110,10 @@ for file in $FILES; do
         # Guard patterns on same line
         echo "$trimmed" | grep -qE '^if\s*\(\s*isDev\s*\).*console\.(log|warn|error)' && continue
         echo "$trimmed" | grep -qE '^isDev\s*&&.*console\.(log|warn|error)' && continue
-        # Guard pattern across previous line + current line (e.g., line 33: isDev && \n line 34: console.log(...))
-        echo "$prev_guard_line$trimmed" | tr -d '\n' | grep -qE '^isDev\s*&&.*console\.(log|warn|error)' && continue
+        # Guard pattern across previous line + current line (e.g., prev: isDev &&, curr: console.log(...))
+        if [ "$last_was_isdev_and" = "1" ]; then
+          echo "$trimmed" | grep -qE '^console\.(log|warn|error)\s*\(' && { last_was_isdev_and=0; continue; }
+        fi
         [ $inside_isDev_block -eq 1 ] && continue
 
         # Check if multi-line or single-line
