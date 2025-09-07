@@ -10,12 +10,29 @@ START_TIME=$(date +%s%N)
 
 IGNORE_FILE="scripts/shared/devTool.js"
 
-# Only check staged JS files
-FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.js$' | grep -v "$IGNORE_FILE")
+# Determine JS files that will be pushed by reading refs from stdin
+# For each ref update, diff remote_sha..local_sha to list changed files
+read_updates=0
+FILES=$(\
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    read_updates=1
+    # Skip deletes
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+      continue
+    fi
+    # If new branch/tag, compare against empty tree; else against remote sha
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+      range="$local_sha"
+    else
+      range="$remote_sha..$local_sha"
+    fi
+    git diff --name-only --diff-filter=ACM $range
+  done < /dev/stdin | grep '\.js$' | grep -v "$IGNORE_FILE" | sort -u
+)
 
-# If no staged JS files, skip quickly
+# If no JS files in the push, skip quickly
 [ -z "$FILES" ] && {
-  echo "✅ No staged JS files to check. Push allowed."
+  echo "✅ No JS changes to check in this push. Push allowed."
   exit 0
 }
 
