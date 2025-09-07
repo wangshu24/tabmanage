@@ -96,6 +96,35 @@ Typical messages you may see:
 - On Windows, run the hook under Git Bash or a POSIX-compatible shell.
 - You can expand the guard patterns or exempt paths in `hooks/pre-push` if your project needs custom logic.
 
+### Running on Windows (without a Unix shell)
+
+If your IDE/terminal doesn’t provide a Unix-like shell, you have a few options:
+
+1) Use Git Bash (installed with Git for Windows)
+
+- Open “Git Bash” and run:
+  ```bash
+  sh hooks/pre-push --all
+  ```
+
+2) Use WSL (Windows Subsystem for Linux)
+
+- From PowerShell or CMD, run:
+  ```powershell
+  wsl sh "$(wslpath -a "$(pwd)")/hooks/pre-push" --all
+  ```
+  Or, from a WSL terminal, cd into the repo and run the same `sh hooks/pre-push --all`.
+
+3) Use Node.js one-liner (if you cannot run sh at all)
+
+The hook is POSIX shell, but you can invoke a similar check via Node.js by spawning a POSIX shell through Git Bash if it’s in PATH:
+
+```powershell
+"C:\Program Files\Git\bin\bash.exe" -lc "sh hooks/pre-push --all"
+```
+
+If your Git Bash is installed elsewhere, adjust the path accordingly. You can also configure a task in your IDE to run that command.
+
 ## Troubleshooting
 
 - "No JS changes to check in this push" but you expected checks:
