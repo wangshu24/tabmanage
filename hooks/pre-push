@@ -1,8 +1,8 @@
 #!/bin/sh
 # pre-push hook
-# Blocks console.log unless guarded by isDev
+# Blocks console.(log|warn|error) unless guarded by isDev
 # Ignores env file where isDevBuild() is defined
-# Supports multi-line console.log
+# Supports single- and multi-line console calls
 # Tracks execution time
 # Optimized: only checks staged files being pushed
 
@@ -29,6 +29,14 @@ for file in $FILES; do
     console_buffer=""
     console_start_line=0
 
+    # Read STAGED content (fallback to working tree if not in index)
+    tmpfile=$(mktemp)
+    if git cat-file -e ":$file" 2>/dev/null; then
+        git show ":$file" > "$tmpfile" 2>/dev/null || true
+    else
+        [ -f "$file" ] && cp "$file" "$tmpfile" 2>/dev/null || true
+    fi
+
     while IFS= read -r line || [ -n "$line" ]; do
         lineno=$((lineno+1))
         trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
@@ -50,8 +58,8 @@ for file in $FILES; do
             # End of multi-line log detected by semicolon
             [[ "$trimmed" == *\; ]] && {
                 # Skip if inside isDev block or guarded
-                [[ "$console_buffer" == "isDev &&"* ]] && inside_console_log=0 && console_buffer="" && continue
-                [[ "$console_buffer" == "if (isDev)"* ]] && inside_console_log=0 && console_buffer="" && continue
+                [[ "$console_buffer" =~ ^isDev[[:space:]]*&& ]] && inside_console_log=0 && console_buffer="" && continue
+                [[ "$console_buffer" =~ ^if[[:space:]]*\(\s*isDev\s*\) ]] && inside_console_log=0 && console_buffer="" && continue
                 [ $inside_isDev_block -eq 1 ] && inside_console_log=0 && console_buffer="" && continue
 
                 invalid_logs="$invalid_logs\n$file:$console_start_line: ${console_buffer}"
@@ -61,10 +69,11 @@ for file in $FILES; do
             continue
         fi
 
-        # --- Detect console.log start ---
-        [[ "$trimmed" == *console.log* ]] || continue
-        [[ "$trimmed" =~ ^if[[:space:]]*\(\s*isDev\s*\).*console.log.* ]] && continue
-        [[ "$trimmed" =~ ^isDev[[:space:]]*&&.*console.log.* ]] && continue
+        # --- Detect console call start ---
+        [[ "$trimmed" == *console.*\(* ]] || continue
+        # Guard patterns on same line
+        [[ "$trimmed" =~ ^if[[:space:]]*\(\s*isDev\s*\).*console\.(log|warn|error).* ]] && continue
+        [[ "$trimmed" =~ ^isDev[[:space:]]*&&.*console\.(log|warn|error).* ]] && continue
         [ $inside_isDev_block -eq 1 ] && continue
 
         # Check if multi-line or single-line
@@ -76,7 +85,9 @@ for file in $FILES; do
             console_start_line=$lineno
         fi
 
-    done < "$file"
+    done < "$tmpfile"
+
+    rm -f "$tmpfile"
 done
 
 END_TIME=$(date +%s%N)
