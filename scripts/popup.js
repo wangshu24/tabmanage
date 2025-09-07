@@ -30,7 +30,7 @@ document.getElementById("add").addEventListener("click", async () => {
     favIcon: tab.favIconUrl,
   };
 
-  console.log("POPUP - newTab before implicitKeyPriorityTab:", newTab);
+  console.log("POPUP - newTab before implicitKeyPriorityTab, test:", newTab);
 
   const isTabNew = tabs.some((t) => t.id === newTab.id);
 
